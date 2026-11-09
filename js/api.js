@@ -1,7 +1,7 @@
 // js/api.js
 import { CONFIG } from './config.js';
 
-// Verificación de estado de la API utilizando la documentación de FastAPI
+// Verificación de estado de la API utilizando la documentación personalizada de FastAPI
 export async function checkApiHealth() {
     try {
         const response = await fetch(`${CONFIG.API_BASE_URL}/docs`);
@@ -11,10 +11,10 @@ export async function checkApiHealth() {
     }
 }
 
-// Obtener la lista de demos disponibles desde el backend
+// Obtener la lista de demos disponibles desde el backend (con el prefijo /api/)
 export async function getDemos() {
     try {
-        const response = await fetch(`${CONFIG.API_BASE_URL}/vehiculos/${CONFIG.VEHICULO_ID}/demos`);
+        const response = await fetch(`${CONFIG.API_BASE_URL}/api/vehiculos/${CONFIG.VEHICULO_ID}/demos`);
         if (!response.ok) throw new Error('Error al cargar demos');
         return await response.json();
     } catch (error) {
@@ -23,10 +23,10 @@ export async function getDemos() {
     }
 }
 
-// Enviar comandos de movimiento mediante HTTP POST
+// Enviar comandos de movimiento mediante HTTP POST (con el prefijo /api/)
 export async function enviarMovimiento(idComando) {
     try {
-        const response = await fetch(`${CONFIG.API_BASE_URL}/movimiento`, {
+        const response = await fetch(`${CONFIG.API_BASE_URL}/api/movimiento`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -42,10 +42,10 @@ export async function enviarMovimiento(idComando) {
     }
 }
 
-// Ejecutar una secuencia demo específica
+// Ejecutar una secuencia demo específica (con el prefijo /api/)
 export async function ejecutarDemo(idDemo) {
     try {
-        const response = await fetch(`${CONFIG.API_BASE_URL}/vehiculos/${CONFIG.VEHICULO_ID}/demos/${idDemo}/ejecutar`, {
+        const response = await fetch(`${CONFIG.API_BASE_URL}/api/vehiculos/${CONFIG.VEHICULO_ID}/demos/${idDemo}/ejecutar`, {
             method: 'POST'
         });
         return response.ok;
