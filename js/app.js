@@ -16,10 +16,7 @@ const ui = {
 
 let ws;
 
-// ... [mantén tus imports y variables igual]
-
 function updateAction(text) {
-    // Hace un pequeño parpadeo visual para que se note la actualización en el display
     ui.lastAction.style.opacity = '0.3';
     setTimeout(() => {
         ui.lastAction.textContent = `> ${text.toUpperCase()}`;
@@ -59,7 +56,6 @@ function initWebSocket() {
     };
 }
 
-// ... [el resto del archivo js/app.js se queda exactamente igual]
 async function loadDemos() {
     const demos = await getDemos();
     ui.selectDemo.innerHTML = '<option value="" selected disabled>Selecciona una DEMO</option>';
