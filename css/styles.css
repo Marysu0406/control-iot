@@ -147,3 +147,19 @@ button { user-select: none; -webkit-user-select: none; }
     border-radius: 0 12px 12px 0 !important;
 }
 .btn-glass-success:hover { background: rgba(16, 185, 129, 0.3); color: #fff; }
+/* Asegurar que las etiquetas superiores de estado sean visibles */
+.card-header, .status-label, small, .text-muted, h6, .card-title {
+    color: #e2e8f0 !important;
+}
+/* Estilos para que el menú de demos combine con el tema oscuro */
+select#select-demo, .form-select {
+    background-color: #1a202c !important;
+    color: #ffffff !important;
+    border: 1px solid #2d3748 !important;
+}
+
+/* Color de texto para las opciones dentro del menú desplegable */
+select#select-demo option {
+    background-color: #1a202c !important;
+    color: #ffffff !important;
+}
