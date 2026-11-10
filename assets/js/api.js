@@ -29,18 +29,28 @@ async function cargarDemosEnSelector() {
     }
 }
 
-// =========================================================
-// NUEVAS FUNCIONES PARA MONITOREO (Práctica 2)
-// =========================================================
 
 // Extrae Fecha (DD/MM/YYYY) y Hora de una cadena ISO (Ej. 2026-11-09T18:16:28)
+// Extrae Fecha y Hora compensando la zona horaria local
 function formatearFechaHora(isoString) {
     if (!isoString) return { fecha: "--/--/----", hora: "--:--:--" };
-    const [fechaPart, horaPart] = isoString.split('T');
-    const [year, month, day] = fechaPart.split('-');
+    
+    // Al añadir 'Z' obligamos al navegador a convertir la hora del servidor (UTC) a tu hora local
+    const fechaObj = new Date(isoString + 'Z');
+    
+    // Extraemos la fecha 
+    const dia = String(fechaObj.getDate()).padStart(2, '0');
+    const mes = String(fechaObj.getMonth() + 1).padStart(2, '0');
+    const anio = fechaObj.getFullYear();
+    
+    // Extraemos la hora
+    const horas = String(fechaObj.getHours()).padStart(2, '0');
+    const minutos = String(fechaObj.getMinutes()).padStart(2, '0');
+    const segundos = String(fechaObj.getSeconds()).padStart(2, '0');
+
     return {
-        fecha: `${day}/${month}/${year}`,
-        hora: horaPart
+        fecha: `${dia}/${mes}/${anio}`,
+        hora: `${horas}:${minutos}:${segundos}`
     };
 }
 
