@@ -137,8 +137,8 @@ new VirtualJoystick('joystick-traccion', (direction) => {
         return;
     }
     let cmd = null; 
-    if (direction === 'UP') cmd = CONFIG.COMANDOS.ADELANTE;
-    else if (direction === 'DOWN') cmd = CONFIG.COMANDOS.ATRAS;
+    if (direction === 'UP') cmd = CONFIG.COMANDOS.AVANZAR;
+    else if (direction === 'DOWN') cmd = CONFIG.COMANDOS.RETROCEDER;
     else if (direction === 'LEFT') cmd = CONFIG.COMANDOS.IZQUIERDA;
     else if (direction === 'RIGHT') cmd = CONFIG.COMANDOS.DERECHA;
     
