@@ -91,18 +91,22 @@ async function cargarHistorial() {
             }
 
             // Limitamos a los primeros 10 como marca la regla de negocio
-            historial.slice(0, 10).forEach((mov, index) => {
-                // Usamos "fecha_hora" tal cual viene en tu JSON
-                const fh = formatearFechaHora(mov.fecha_hora);
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${index + 1}</td>
-                    <td class="fw-bold">${mov.comando}</td>
-                    <td>${fh.fecha}</td>
-                    <td>${fh.hora}</td>
-                `;
-                tbody.appendChild(tr);
-            });
+historial.slice(0, 10).forEach((mov, index) => {
+    // Usamos "fecha_hora" tal cual viene en tu JSON
+    const fh = formatearFechaHora(mov.fecha_hora);
+    const tr = document.createElement('tr');
+    
+    // Limpiar el texto del comando (reemplaza guiones bajos por espacios si existen)
+    const nombreLimpio = mov.comando ? mov.comando.replace(/_/g, ' ') : "DESCONOCIDO";
+
+    tr.innerHTML = `
+        <td>${index + 1}</td>
+        <td class="fw-bold">${nombreLimpio}</td>
+        <td>${fh.fecha}</td>
+        <td>${fh.hora}</td>
+    `;
+    tbody.appendChild(tr);
+});
         } else {
             tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-3">Error al cargar historial</td></tr>';
         }

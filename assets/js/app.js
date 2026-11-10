@@ -14,6 +14,7 @@ const ui = {
 
 let ws = null;
 let fueEmergencia = false; // 🔥 Bandera para saber si se presionó el botón rojo
+let enDemo = false;        // 🔥 Bandera para saber si se está ejecutando una secuencia automática
 
 // ==========================================
 // LÓGICA DE NAVEGACIÓN SPA
@@ -86,7 +87,9 @@ function initWebSocket() {
                 // Magia para ignorar el DETENER del joystick:
                 // Solo actualiza la tarjeta si NO es detener, o si presionaste el botón de emergencia
                 if (accionStr !== "DETENER SISTEMA" || fueEmergencia) {
-                    document.getElementById('um-comando').innerText = accionStr;
+                    // Si estamos en demo, anteponemos "DEMO: "
+                    const textoTarjeta = enDemo ? `DEMO: ${accionStr}` : accionStr;
+                    document.getElementById('um-comando').innerText = textoTarjeta;
                     
                     const now = new Date();
                     const hh = String(now.getHours()).padStart(2, '0');
@@ -108,10 +111,12 @@ function initWebSocket() {
             }
             
             if (data.evento === "DEMO_INICIADA") {
+                enDemo = true;
                 showLiveAction("🤖 EJECUTANDO SECUENCIA AUTOMÁTICA...");
             }
             
             if (data.evento === "DEMO_FINALIZADA") {
+                enDemo = false;
                 showLiveAction("✅ DEMO FINALIZADA");
             }
         };
