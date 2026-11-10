@@ -1,66 +1,73 @@
-/* Reseteo para vista estricta sin scroll */
+/* Reseteo estricto para bloquear cualquier tipo de scroll en cualquier pantalla */
 body, html {
     margin: 0;
     padding: 0;
+    width: 100vw;
     height: 100vh;
-    overflow: hidden;
+    overflow: hidden !important;
     background-color: #1a1625;
     color: #fde8f1;
     font-family: 'Inter', system-ui, sans-serif;
     user-select: none;
     touch-action: none;
+    position: fixed; /* Evita rebotes elásticos en móviles */
 }
 
 .text-pink { color: #ff79c6 !important; }
 .border-pink { border-color: rgba(255, 121, 198, 0.3) !important; }
 
-/* Contenedor central principal */
+/* Contenedor central que se ajusta perfectamente al alto de la pantalla */
 .remote-container {
     display: flex;
     flex-direction: column;
+    width: 100vw;
     height: 100vh;
-    padding: 12px;
-    max-width: 1200px; 
+    max-width: 1200px;
     margin: 0 auto;
+    padding: 8px 12px;
+    box-sizing: border-box;
+    overflow: hidden !important;
 }
 
 .top-nav {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 10px;
+    margin-bottom: 6px;
+    flex-shrink: 0;
 }
 .brand-title {
-    font-size: 1.1rem;
+    font-size: 1rem;
     font-weight: 800;
     letter-spacing: 1px;
 }
 .vehiculo-badge {
     background: #2d2438;
     border-radius: 20px;
-    padding: 4px 12px;
-    font-size: 0.8rem;
+    padding: 3px 10px;
+    font-size: 0.75rem;
     color: #ff79c6;
     border: 1px solid #443755;
 }
 
 .status-panel {
     background-color: #2d2438;
-    border-radius: 12px;
-    padding: 10px;
-    margin-bottom: 10px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    border-radius: 10px;
+    padding: 6px 10px;
+    margin-bottom: 6px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    flex-shrink: 0;
 }
 .status-label {
-    font-size: 0.6rem;
+    font-size: 0.55rem;
     color: #a99bb8;
     font-weight: bold;
-    margin-bottom: 2px;
+    margin-bottom: 1px;
 }
 .status-indicator {
-    font-size: 0.75rem;
-    border-radius: 10px;
-    padding: 2px 8px;
+    font-size: 0.7rem;
+    border-radius: 8px;
+    padding: 1px 6px;
     font-weight: 600;
     display: inline-block;
 }
@@ -68,26 +75,66 @@ body, html {
 .danger { background-color: rgba(255, 85, 85, 0.2); color: #ff5555; }
 .warning { background-color: rgba(241, 250, 140, 0.2); color: #f1fa8c; }
 
+/* Pestañas de Navegación SPA */
+.tabs-container {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 6px;
+    flex-shrink: 0;
+}
+.tab-btn {
+    flex: 1;
+    background-color: #2d2438;
+    border: 1px solid #443755;
+    color: #a99bb8;
+    padding: 6px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    transition: all 0.3s;
+}
+.tab-btn.active {
+    background-color: rgba(189, 147, 249, 0.2);
+    border-color: #bd93f9;
+    color: #ffb8d8;
+    box-shadow: 0 0 8px rgba(189, 147, 249, 0.3);
+}
+
+.view-section {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    overflow: hidden !important;
+    min-height: 0; /* Vital para que flexbox no desborde */
+}
+
 .live-action-bar {
     background-color: #0f0c16;
     text-align: center;
-    padding: 10px;
-    border-radius: 8px;
+    padding: 6px;
+    border-radius: 6px;
     border: 1px solid #443755;
-    box-shadow: inset 0 0 10px rgba(255, 121, 198, 0.1);
+    box-shadow: inset 0 0 8px rgba(255, 121, 198, 0.1);
+    flex-shrink: 0;
+    margin-bottom: 6px !important;
 }
 #live-action-text {
-    font-size: 0.85rem;
+    font-size: 0.75rem;
     color: #ffb8d8;
     letter-spacing: 1px;
 }
 
+.emergency-container {
+    flex-shrink: 0;
+    margin-bottom: 6px !important;
+}
 .btn-stop-girly {
     background: linear-gradient(135deg, #ff5555, #ff3333);
     color: white;
     border: none;
-    border-radius: 25px;
-    padding: 12px;
+    border-radius: 20px;
+    padding: 8px;
+    font-size: 0.9rem !important;
     transition: transform 0.1s;
 }
 .btn-stop-girly:active { transform: scale(0.95); }
@@ -95,24 +142,24 @@ body, html {
 /* GRID RESPONSIVO PARA CONTROLES */
 .responsive-controls {
     display: grid;
-    /* Diseño base para Celular Vertical: Botones arriba, Joysticks abajo */
     grid-template-areas: 
         "botones botones"
         "joystick1 joystick2";
-    gap: 15px;
+    gap: 8px;
     align-items: center;
     justify-items: center;
     flex-grow: 1;
-    margin: 10px 0;
+    margin: 4px 0;
+    overflow: hidden;
 }
 
 .toggles-container {
     grid-area: botones;
     display: flex;
     justify-content: space-between;
-    gap: 8px;
+    gap: 6px;
     width: 100%;
-    max-width: 500px; 
+    max-width: 450px;
 }
 .j-izq { grid-area: joystick1; }
 .j-der { grid-area: joystick2; }
@@ -122,20 +169,20 @@ body, html {
     background-color: #2d2438;
     border: 1px solid #624b7a;
     color: #a99bb8;
-    border-radius: 15px;
-    padding: 8px 5px;
-    font-size: 0.8rem;
+    border-radius: 12px;
+    padding: 6px 4px;
+    font-size: 0.75rem;
     display: flex;
     flex-direction: column;
     align-items: center;
     transition: all 0.3s ease;
 }
-.btn-toggle-girly i { font-size: 1.1rem; margin-bottom: 3px; }
+.btn-toggle-girly i { font-size: 0.95rem; margin-bottom: 2px; }
 .btn-toggle-girly.active {
     background-color: rgba(189, 147, 249, 0.3);
     border-color: #bd93f9;
     color: #ffffff;
-    box-shadow: 0 0 12px rgba(189, 147, 249, 0.6);
+    box-shadow: 0 0 10px rgba(189, 147, 249, 0.6);
 }
 
 .joystick-wrapper {
@@ -145,178 +192,95 @@ body, html {
 }
 .control-title {
     color: #bd93f9;
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     font-weight: 700;
     letter-spacing: 1px;
-    margin-bottom: 8px;
+    margin-bottom: 4px;
 }
 
+/* Joysticks adaptativos inteligentes */
 .joystick-base {
-    width: 120px;
-    height: 120px;
+    width: clamp(90px, 20vh, 120px);
+    height: clamp(90px, 20vh, 120px);
     background: radial-gradient(circle at center, #2d2438 0%, #1a1625 100%);
     border-radius: 50%;
     position: relative;
     border: 2px solid #624b7a;
-    box-shadow: inset 0 5px 15px rgba(0,0,0,0.8);
+    box-shadow: inset 0 4px 10px rgba(0,0,0,0.8);
 }
 .joystick-knob {
-    width: 45px;
-    height: 45px;
+    width: clamp(35px, 8vh, 45px);
+    height: clamp(35px, 8vh, 45px);
     background: linear-gradient(135deg, #bd93f9, #ff79c6);
     border-radius: 50%;
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    box-shadow: 0 4px 10px rgba(255, 121, 198, 0.4);
+    box-shadow: 0 3px 8px rgba(255, 121, 198, 0.4);
     border-top: 1px solid #ffb8d8;
 }
 
 .demo-section {
     background-color: #2d2438;
-    border-radius: 12px;
-    padding: 12px;
+    border-radius: 10px;
+    padding: 8px 10px;
+    flex-shrink: 0;
+    margin-top: auto;
 }
 .select-girly {
     background-color: #1a1625 !important;
     border: 1px solid #624b7a !important;
     color: #fde8f1 !important;
-    border-radius: 8px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    padding: 4px 8px;
 }
 .btn-play-girly {
     background: linear-gradient(135deg, #50fa7b, #28a745);
     color: #000;
     border: none;
-    border-radius: 8px;
+    border-radius: 6px;
     transition: transform 0.1s;
 }
 .btn-play-girly:active { transform: scale(0.90); }
 
-/* MEDIA QUERY PARA COMPUTADORA O CELULAR HORIZONTAL */
-/* MEDIA QUERY PARA COMPUTADORA O CELULAR HORIZONTAL (LANDSCAPE) */
-@media (min-width: 768px), (orientation: landscape) {
-    
-    /* Permitir scroll natural y fluido para que los joysticks y demos quepan siempre */
-    body, html {
-        overflow-y: auto !important;
-        height: auto !important;
-    }
-    .remote-container {
-        height: auto !important;
-        min-height: 100vh;
-        /* Espaciado interno generoso para que nada quede pegado a los bordes */
-        padding-bottom: 20px !important;
-    }
-
-    /* Reacomodo horizontal de la rejilla de controles */
-    .responsive-controls {
-        display: grid;
-        grid-template-areas: "joystick1 botones joystick2";
-        grid-template-columns: 1fr auto 1fr;
-        gap: 20px; 
-        margin: 15px 0;
-        align-items: center;
-        justify-items: center;
-    }
-    
-    .toggles-container {
-        flex-direction: column;
-        gap: 12px;
-        width: 110px;
-    }
-
-    /* Tamaño ideal para joysticks en horizontal y PC */
-    .joystick-base {
-        width: 160px !important;
-        height: 160px !important;
-    }
-    .joystick-knob {
-        width: 60px !important;
-        height: 60px !important;
-    }
-    .control-title {
-        font-size: 0.8rem; 
-        margin-bottom: 8px;
-    }
-
-    /* Asegurar que la sección de demos inferior tenga su espacio correcto */
-    .demo-section {
-        margin-top: 20px !important;
-    }
-}
-/* ==========================================
-   ESTILOS DE NAVEGACIÓN Y MONITOREO (Práctica 2)
-   ========================================== */
-
-/* Pestañas de navegación SPA */
-.tabs-container {
-    display: flex;
-    gap: 10px;
-}
-.tab-btn {
-    flex: 1;
-    background-color: #2d2438;
-    border: 1px solid #443755;
-    color: #a99bb8;
-    padding: 8px;
-    border-radius: 8px;
-    font-size: 0.85rem;
-    font-weight: bold;
-    transition: all 0.3s;
-}
-.tab-btn.active {
-    background-color: rgba(189, 147, 249, 0.2);
-    border-color: #bd93f9;
-    color: #ffb8d8;
-    box-shadow: 0 0 10px rgba(189, 147, 249, 0.3);
-}
-
-/* Ocultar vistas no activas */
-.view-section {
-    display: flex;
-    flex-direction: column;
-    flex-grow: 1;
-    overflow-y: hidden; /* Evita que crezca de más la página */
-}
-
-/* Tarjeta Último Movimiento */
+/* VISTA MONITOREO */
 .ultimo-movimiento-card {
     background: linear-gradient(135deg, #2d2438, #1a1625);
     border: 1px solid #bd93f9;
-    border-radius: 12px;
-    padding: 15px;
-    box-shadow: 0 4px 15px rgba(189, 147, 249, 0.15);
+    border-radius: 10px;
+    padding: 10px;
+    flex-shrink: 0;
 }
 .um-comando {
-    font-size: 1.5rem;
+    font-size: 1.3rem;
     font-weight: 900;
-    color: #50fa7b; /* Verde neón para destacar la acción */
-    letter-spacing: 2px;
-    margin-bottom: 5px;
-    text-shadow: 0 0 8px rgba(80, 250, 123, 0.4);
+    color: #50fa7b;
+    letter-spacing: 1px;
+    margin-bottom: 2px;
 }
 .um-fecha-hora {
-    font-size: 0.85rem;
+    font-size: 0.75rem;
     color: #a99bb8;
 }
 
-/* Tabla de Historial Responsiva */
 .historial-container {
     display: flex;
     flex-direction: column;
     flex-grow: 1;
     overflow: hidden;
+    min-height: 0;
 }
 .table-wrapper-girly {
     background-color: #2d2438;
-    border-radius: 12px;
+    border-radius: 10px;
     border: 1px solid #443755;
-    overflow-y: auto; /* Scroll interno solo para la tabla */
-    max-height: 100%;
+    overflow-y: auto; /* Scroll interno solo dentro de la tabla si excede */
+    flex-grow: 1;
 }
 .table-girly {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     color: #fde8f1;
     margin-bottom: 0;
 }
@@ -328,24 +292,41 @@ body, html {
 }
 .table-girly th {
     color: #bd93f9;
-    border-bottom: 1px solid #624b7a;
-    text-transform: uppercase;
-    font-size: 0.7rem;
-    padding: 10px;
+    padding: 6px 8px;
+    font-size: 0.65rem;
 }
 .table-girly td {
     background-color: transparent !important;
-    border-bottom: 1px solid rgba(98, 75, 122, 0.3);
-    vertical-align: middle;
-    padding: 8px 10px;
-}
-.table-girly tr:last-child td {
-    border-bottom: none;
+    padding: 5px 8px;
 }
 
-/* Créditos del footer */
 .footer-credits {
-    font-size: 0.65rem;
+    font-size: 0.55rem;
     color: #645577;
     font-weight: 600;
+    flex-shrink: 0;
+}
+
+/* MEDIA QUERY PARA PC Y CELULAR HORIZONTAL (LANDSCAPE) */
+@media (min-width: 768px), (orientation: landscape) {
+    .responsive-controls {
+        grid-template-areas: "joystick1 botones joystick2";
+        grid-template-columns: 1fr auto 1fr;
+        gap: 20px; 
+    }
+    
+    .toggles-container {
+        flex-direction: column;
+        gap: 12px;
+        width: 110px;
+    }
+
+    .joystick-base {
+        width: clamp(130px, 35vh, 180px) !important;
+        height: clamp(130px, 35vh, 180px) !important;
+    }
+    .joystick-knob {
+        width: clamp(45px, 12vh, 65px) !important;
+        height: clamp(45px, 12vh, 65px) !important;
+    }
 }
