@@ -1,34 +1,50 @@
-/* Reseteo estricto para bloquear cualquier tipo de scroll en cualquier pantalla */
-body, html {
+/* ============================================================
+   RESETEO: bloquea cualquier scroll en cualquier pantalla
+   ============================================================ */
+html, body {
     margin: 0;
     padding: 0;
-    width: 100vw;
-    height: 100vh;
+    width: 100%;
+    height: 100%;
     overflow: hidden !important;
+    overscroll-behavior: none;
     background-color: #1a1625;
     color: #fde8f1;
     font-family: 'Inter', system-ui, sans-serif;
+    -webkit-user-select: none;
     user-select: none;
     touch-action: none;
-    position: fixed; /* Evita rebotes elásticos en móviles */
+}
+body {
+    position: fixed; /* evita rebotes elásticos en móviles */
+    inset: 0;
+    height: 100vh;   /* fallback */
+    height: 100dvh;  /* alto real visible en móviles */
 }
 
 .text-pink { color: #ff79c6 !important; }
 .border-pink { border-color: rgba(255, 121, 198, 0.3) !important; }
 
-/* Contenedor central que se ajusta perfectamente al alto de la pantalla */
+/* Contenedor central que se ajusta al alto de la pantalla */
 .remote-container {
     display: flex;
     flex-direction: column;
-    width: 100vw;
-    height: 100vh;
+    width: 100%;
+    height: 100%;
     max-width: 1200px;
     margin: 0 auto;
-    padding: 8px 12px;
     box-sizing: border-box;
     overflow: hidden !important;
+    padding:
+        max(8px, env(safe-area-inset-top))
+        max(12px, env(safe-area-inset-right))
+        max(8px, env(safe-area-inset-bottom))
+        max(12px, env(safe-area-inset-left));
 }
 
+/* ============================================================
+   BARRA SUPERIOR
+   ============================================================ */
 .top-nav {
     display: flex;
     justify-content: space-between;
@@ -50,6 +66,9 @@ body, html {
     border: 1px solid #443755;
 }
 
+/* ============================================================
+   PANEL DE ESTADO
+   ============================================================ */
 .status-panel {
     background-color: #2d2438;
     border-radius: 10px;
@@ -72,10 +91,12 @@ body, html {
     display: inline-block;
 }
 .success { background-color: rgba(80, 250, 123, 0.2); color: #50fa7b; }
-.danger { background-color: rgba(255, 85, 85, 0.2); color: #ff5555; }
+.danger  { background-color: rgba(255, 85, 85, 0.2);  color: #ff5555; }
 .warning { background-color: rgba(241, 250, 140, 0.2); color: #f1fa8c; }
 
-/* Pestañas de Navegación SPA */
+/* ============================================================
+   PESTAÑAS DE NAVEGACIÓN SPA
+   ============================================================ */
 .tabs-container {
     display: flex;
     gap: 8px;
@@ -105,9 +126,12 @@ body, html {
     flex-direction: column;
     flex-grow: 1;
     overflow: hidden !important;
-    min-height: 0; /* Vital para que flexbox no desborde */
+    min-height: 0; /* vital para que flexbox no desborde */
 }
 
+/* ============================================================
+   BARRA DE ACCIÓN EN VIVO Y EMERGENCIA
+   ============================================================ */
 .live-action-bar {
     background-color: #0f0c16;
     text-align: center;
@@ -139,16 +163,21 @@ body, html {
 }
 .btn-stop-girly:active { transform: scale(0.95); }
 
-/* GRID RESPONSIVO PARA CONTROLES */
+/* ============================================================
+   CONTROLES (vertical por defecto)
+   ============================================================ */
 .responsive-controls {
+    container-type: size;          /* permite usar cqw / cqh dentro */
     display: grid;
-    grid-template-areas: 
+    grid-template-areas:
         "botones botones"
         "joystick1 joystick2";
+    grid-template-rows: auto 1fr;
     gap: 8px;
     align-items: center;
     justify-items: center;
-    flex-grow: 1;
+    flex: 1 1 0;
+    min-height: 0;                 /* vital para que no desborde */
     margin: 4px 0;
     overflow: hidden;
 }
@@ -189,6 +218,8 @@ body, html {
     display: flex;
     flex-direction: column;
     align-items: center;
+    /* el joystick ocupa el espacio disponible, sea ancho o alto */
+    --js: clamp(60px, min(42cqw, 100cqh - 95px), 220px);
 }
 .control-title {
     color: #bd93f9;
@@ -198,10 +229,10 @@ body, html {
     margin-bottom: 4px;
 }
 
-/* Joysticks adaptativos inteligentes */
+/* Joysticks adaptativos */
 .joystick-base {
-    width: clamp(90px, 20vh, 120px);
-    height: clamp(90px, 20vh, 120px);
+    width: var(--js);
+    height: var(--js);
     background: radial-gradient(circle at center, #2d2438 0%, #1a1625 100%);
     border-radius: 50%;
     position: relative;
@@ -209,8 +240,8 @@ body, html {
     box-shadow: inset 0 4px 10px rgba(0,0,0,0.8);
 }
 .joystick-knob {
-    width: clamp(35px, 8vh, 45px);
-    height: clamp(35px, 8vh, 45px);
+    width: calc(var(--js) * 0.4);
+    height: calc(var(--js) * 0.4);
     background: linear-gradient(135deg, #bd93f9, #ff79c6);
     border-radius: 50%;
     position: absolute;
@@ -221,6 +252,9 @@ body, html {
     border-top: 1px solid #ffb8d8;
 }
 
+/* ============================================================
+   SECCIÓN DEMO
+   ============================================================ */
 .demo-section {
     background-color: #2d2438;
     border-radius: 10px;
@@ -245,7 +279,9 @@ body, html {
 }
 .btn-play-girly:active { transform: scale(0.90); }
 
-/* VISTA MONITOREO */
+/* ============================================================
+   VISTA MONITOREO
+   ============================================================ */
 .ultimo-movimiento-card {
     background: linear-gradient(135deg, #2d2438, #1a1625);
     border: 1px solid #bd93f9;
@@ -276,8 +312,9 @@ body, html {
     background-color: #2d2438;
     border-radius: 10px;
     border: 1px solid #443755;
-    overflow-y: auto; /* Scroll interno solo dentro de la tabla si excede */
+    overflow-y: auto; /* scroll interno solo dentro de la tabla si excede */
     flex-grow: 1;
+    min-height: 0;
 }
 .table-girly {
     font-size: 0.7rem;
@@ -307,26 +344,60 @@ body, html {
     flex-shrink: 0;
 }
 
-/* MEDIA QUERY PARA PC Y CELULAR HORIZONTAL (LANDSCAPE) */
+/* ============================================================
+   HORIZONTAL / PC / TABLET
+   ============================================================ */
 @media (min-width: 768px), (orientation: landscape) {
     .responsive-controls {
         grid-template-areas: "joystick1 botones joystick2";
         grid-template-columns: 1fr auto 1fr;
-        gap: 20px; 
+        grid-template-rows: 1fr;
+        gap: 16px;
     }
-    
+    .joystick-wrapper {
+        --js: clamp(60px, min(30cqw, 100cqh - 28px), 240px);
+    }
     .toggles-container {
         flex-direction: column;
-        gap: 12px;
-        width: 110px;
+        gap: 8px;
+        width: 120px;
+        height: 100%;
+        max-height: 100%;
+        justify-content: center;
     }
+    .btn-toggle-girly {
+        flex: 0 1 auto;
+        min-height: 0;
+    }
+}
 
-    .joystick-base {
-        width: clamp(130px, 35vh, 180px) !important;
-        height: clamp(130px, 35vh, 180px) !important;
+/* ============================================================
+   PANTALLAS BAJAS (celular horizontal, celulares chicos)
+   ============================================================ */
+@media (max-height: 650px) {
+    .remote-container { padding-top: 4px; padding-bottom: 4px; }
+    .top-nav, .status-panel, .tabs-container { margin-bottom: 4px; }
+    .status-panel { padding: 4px 8px; }
+    .tab-btn { padding: 4px; font-size: 0.7rem; }
+    .live-action-bar { padding: 3px; margin-bottom: 4px !important; }
+    .emergency-container { margin-bottom: 4px !important; }
+    .btn-stop-girly { padding: 5px; font-size: 0.8rem !important; }
+    .demo-section { padding: 5px 8px; }
+    .footer-credits { display: none; }
+}
+
+@media (max-height: 450px) {
+    .status-label { display: none; }
+    .brand-title { font-size: 0.8rem; }
+    .vehiculo-badge { font-size: 0.65rem; padding: 2px 8px; }
+    .btn-toggle-girly {
+        flex-direction: row;
+        justify-content: center;
+        gap: 4px;
+        padding: 4px;
+        font-size: 0.65rem;
     }
-    .joystick-knob {
-        width: clamp(45px, 12vh, 65px) !important;
-        height: clamp(45px, 12vh, 65px) !important;
-    }
+    .btn-toggle-girly i { margin-bottom: 0; font-size: 0.8rem; }
+    .toggles-container { gap: 4px; }
+    .control-title { margin-bottom: 2px; font-size: 0.55rem; }
 }
