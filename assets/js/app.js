@@ -5,7 +5,7 @@ const ui = {
     liveText: document.getElementById('live-action-text'),
     selectDemo: document.getElementById('select-demo'),
     toggles: Array.from(document.querySelectorAll('.btn-toggle-girly')),
-    // Nuevos elementos para SPA (Navegación por pestañas)
+    // Elementos para Navegación SPA
     tabControl: document.getElementById('tab-control'),
     tabMonitoreo: document.getElementById('tab-monitoreo'),
     viewControl: document.getElementById('view-control'),
@@ -13,6 +13,7 @@ const ui = {
 };
 
 let ws = null;
+let fueEmergencia = false; // 🔥 Bandera para saber si se presionó el botón rojo
 
 // ==========================================
 // LÓGICA DE NAVEGACIÓN SPA
@@ -31,22 +32,36 @@ ui.tabMonitoreo.addEventListener('click', () => {
     ui.viewMonitoreo.style.display = 'flex';
 });
 
-// ==========================================
-// CONTROL DE WEBSOCKET Y SINCRONIZACIÓN
-// ==========================================
 function showLiveAction(text) {
     ui.liveText.innerText = text;
 }
 
-function sendCommand(idComando, isDemo = false) {
-    if (ws && ws.readyState === 1) {
-        const payload = isDemo ? { "id_demo": parseInt(idComando) } : { "comando": parseInt(idComando) };
-        ws.send(JSON.stringify(payload));
-    } else {
-        showLiveAction("ERROR: WEBSOCKET NO CONECTADO");
+// ==========================================
+// EL GRAN CAMBIO: Usar REST POST para que AWS guarde en MySQL
+// ==========================================
+async function sendCommand(idComando, isDemo = false) {
+    if (isDemo) return; // Las demos usan su propio fetch en su botón
+    
+    try {
+        const url = `https://${CONFIG.API_URL_BASE}/api/movimiento`;
+        await fetch(url, {
+            method: 'POST', // Esto asegura que AWS ejecute el Stored Procedure y guarde la hora real
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                id_vehiculo: CONFIG.VEHICULO_ID,
+                id_comando: parseInt(idComando),
+                origen: "WEB"
+            })
+        });
+    } catch (error) {
+        console.error("Error de red al enviar comando:", error);
+        showLiveAction("⚠️ ERROR DE RED");
     }
 }
 
+// ==========================================
+// CONTROL DE WEBSOCKET Y SINCRONIZACIÓN
+// ==========================================
 function initWebSocket() {
     showLiveAction("INTENTANDO CONECTAR WSS...");
     try {
@@ -57,7 +72,6 @@ function initWebSocket() {
             ui.wss.className = 'status-indicator success';
             showLiveAction("✨ WEBSOCKET CONECTADO ✨");
             
-            // Regla de Negocio: Al recuperar la conexión WSS, resincronizar datos REST
             cargarUltimoEstado();
             cargarHistorial();
         };
@@ -65,20 +79,31 @@ function initWebSocket() {
         ws.onmessage = (mensaje) => {
             const data = JSON.parse(mensaje.data);
             
-            // Si llega un movimiento (tanto tuyo como de otro cliente Postman)
             if (data.accion) {
-                // 1. Actualizar barra de CONTROL
-                showLiveAction(`${data.accion.toUpperCase()}`);
+                const accionStr = data.accion.toUpperCase();
+                showLiveAction(`${accionStr}`);
                 
-                // 2. Actualizar Tarjeta de MONITOREO instantáneamente
-                document.getElementById('um-comando').innerText = data.accion.toUpperCase();
-                const now = new Date();
-                const hh = String(now.getHours()).padStart(2, '0');
-                const mm = String(now.getMinutes()).padStart(2, '0');
-                const ss = String(now.getSeconds()).padStart(2, '0');
-                document.getElementById('um-hora').innerText = `${hh}:${mm}:${ss}`;
+                // Magia para ignorar el DETENER del joystick:
+                // Solo actualiza la tarjeta si NO es detener, o si presionaste el botón de emergencia
+                if (accionStr !== "DETENER SISTEMA" || fueEmergencia) {
+                    document.getElementById('um-comando').innerText = accionStr;
+                    
+                    const now = new Date();
+                    const hh = String(now.getHours()).padStart(2, '0');
+                    const mm = String(now.getMinutes()).padStart(2, '0');
+                    const ss = String(now.getSeconds()).padStart(2, '0');
+                    document.getElementById('um-hora').innerText = `${hh}:${mm}:${ss}`;
+                    
+                    // Nos aseguramos de tener la fecha correcta de hoy
+                    const dia = String(now.getDate()).padStart(2, '0');
+                    const mes = String(now.getMonth() + 1).padStart(2, '0');
+                    const anio = now.getFullYear();
+                    document.getElementById('um-fecha').innerText = `${dia}/${mes}/${anio}`;
+                    
+                    fueEmergencia = false; // Resetear la bandera
+                }
                 
-                // 3. Reconciliar Tabla llamando a la API (Para garantizar Persistencia en RDS)
+                // Siempre actualizamos la tabla para que lea los 10 movimientos persistidos reales en RDS
                 cargarHistorial();
             }
             
@@ -103,7 +128,7 @@ function initWebSocket() {
 }
 
 // ==========================================
-// CONTROLES DE HARDWARE (JOYSTICKS Y BOTONES)
+// CONTROLES DE HARDWARE
 // ==========================================
 new VirtualJoystick('joystick-traccion', (direction) => {
     if (direction === null) {
@@ -143,6 +168,7 @@ ui.toggles.forEach(btn => {
 });
 
 document.getElementById('btn-detener').addEventListener('click', () => {
+    fueEmergencia = true; // Avisamos que fue intencional para que la tarjeta se actualice
     sendCommand(CONFIG.COMANDOS.DETENER);
     showLiveAction("SISTEMA DETENIDO POR EMERGENCIA");
     ui.toggles.forEach(btn => btn.classList.remove('active'));
@@ -166,7 +192,7 @@ document.getElementById('btn-play-demo').addEventListener('click', async () => {
 });
 
 // ==========================================
-// INICIALIZACIÓN DEL SISTEMA
+// INICIALIZACIÓN
 // ==========================================
 async function arrancarSistema() {
     const estadoOk = await checkApiHealth();
@@ -176,7 +202,6 @@ async function arrancarSistema() {
         ui.rds.innerHTML = '<i class="fa-solid fa-database"></i>';
         ui.rds.className = 'status-indicator success';
         
-        // Cargar datos inicales para el Monitoreo
         await cargarDemosEnSelector();
         await cargarUltimoEstado();
         await cargarHistorial();
