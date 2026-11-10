@@ -12,5 +12,8 @@ const CONFIG = {
 
 CONFIG.ENDPOINTS = {
     DEMOS: `https://${CONFIG.API_URL_BASE}/api/vehiculos/${CONFIG.VEHICULO_ID}/demos`,
-    WS: `wss://${CONFIG.API_URL_BASE}/ws/vehiculo/${CONFIG.VEHICULO_ID}`
+    WS: `wss://${CONFIG.API_URL_BASE}/ws/vehiculo/${CONFIG.VEHICULO_ID}`,
+    // Nuevas rutas para la Práctica 2
+    ESTADO: `https://${CONFIG.API_URL_BASE}/api/vehiculos/${CONFIG.VEHICULO_ID}/estado`,
+    HISTORIAL: `https://${CONFIG.API_URL_BASE}/api/vehiculos/${CONFIG.VEHICULO_ID}/historial`
 };

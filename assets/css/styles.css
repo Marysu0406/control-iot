@@ -221,3 +221,107 @@ body, html {
         margin-bottom: 15px;
     }
 }
+/* ==========================================
+   ESTILOS DE NAVEGACIÓN Y MONITOREO (Práctica 2)
+   ========================================== */
+
+/* Pestañas de navegación SPA */
+.tabs-container {
+    display: flex;
+    gap: 10px;
+}
+.tab-btn {
+    flex: 1;
+    background-color: #2d2438;
+    border: 1px solid #443755;
+    color: #a99bb8;
+    padding: 8px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: bold;
+    transition: all 0.3s;
+}
+.tab-btn.active {
+    background-color: rgba(189, 147, 249, 0.2);
+    border-color: #bd93f9;
+    color: #ffb8d8;
+    box-shadow: 0 0 10px rgba(189, 147, 249, 0.3);
+}
+
+/* Ocultar vistas no activas */
+.view-section {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    overflow-y: hidden; /* Evita que crezca de más la página */
+}
+
+/* Tarjeta Último Movimiento */
+.ultimo-movimiento-card {
+    background: linear-gradient(135deg, #2d2438, #1a1625);
+    border: 1px solid #bd93f9;
+    border-radius: 12px;
+    padding: 15px;
+    box-shadow: 0 4px 15px rgba(189, 147, 249, 0.15);
+}
+.um-comando {
+    font-size: 1.5rem;
+    font-weight: 900;
+    color: #50fa7b; /* Verde neón para destacar la acción */
+    letter-spacing: 2px;
+    margin-bottom: 5px;
+    text-shadow: 0 0 8px rgba(80, 250, 123, 0.4);
+}
+.um-fecha-hora {
+    font-size: 0.85rem;
+    color: #a99bb8;
+}
+
+/* Tabla de Historial Responsiva */
+.historial-container {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    overflow: hidden;
+}
+.table-wrapper-girly {
+    background-color: #2d2438;
+    border-radius: 12px;
+    border: 1px solid #443755;
+    overflow-y: auto; /* Scroll interno solo para la tabla */
+    max-height: 100%;
+}
+.table-girly {
+    font-size: 0.75rem;
+    color: #fde8f1;
+    margin-bottom: 0;
+}
+.table-girly thead {
+    background-color: #1a1625 !important;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+.table-girly th {
+    color: #bd93f9;
+    border-bottom: 1px solid #624b7a;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    padding: 10px;
+}
+.table-girly td {
+    background-color: transparent !important;
+    border-bottom: 1px solid rgba(98, 75, 122, 0.3);
+    vertical-align: middle;
+    padding: 8px 10px;
+}
+.table-girly tr:last-child td {
+    border-bottom: none;
+}
+
+/* Créditos del footer */
+.footer-credits {
+    font-size: 0.65rem;
+    color: #645577;
+    font-weight: 600;
+}

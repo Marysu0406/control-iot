@@ -26,6 +26,78 @@ async function cargarDemosEnSelector() {
     } catch(e) {
         const select = document.getElementById('select-demo');
         select.innerHTML = '<option value="">⚠️ Error cargando demos</option>';
-        console.error("Fallo al traer las demos:", e);
+    }
+}
+
+// =========================================================
+// NUEVAS FUNCIONES PARA MONITOREO (Práctica 2)
+// =========================================================
+
+// Extrae Fecha (DD/MM/YYYY) y Hora de una cadena ISO (Ej. 2026-11-09T18:16:28)
+function formatearFechaHora(isoString) {
+    if (!isoString) return { fecha: "--/--/----", hora: "--:--:--" };
+    const [fechaPart, horaPart] = isoString.split('T');
+    const [year, month, day] = fechaPart.split('-');
+    return {
+        fecha: `${day}/${month}/${year}`,
+        hora: horaPart
+    };
+}
+
+// Consulta el Último Movimiento
+async function cargarUltimoEstado() {
+    try {
+        const res = await fetch(CONFIG.ENDPOINTS.ESTADO);
+        if (res.ok) {
+            const estado = await res.json();
+            document.getElementById('um-comando').innerText = estado.comando || "DESCONOCIDO";
+            
+            // Usamos "fecha_actualizacion" tal cual nos la dio tu JSON
+            const fh = formatearFechaHora(estado.fecha_actualizacion);
+            document.getElementById('um-fecha').innerText = fh.fecha;
+            document.getElementById('um-hora').innerText = fh.hora;
+        } else {
+            document.getElementById('um-comando').innerText = "SIN DATOS";
+        }
+    } catch (e) {
+        console.error("Error al cargar último estado:", e);
+        document.getElementById('um-comando').innerText = "ERROR DE CONEXIÓN";
+    }
+}
+
+// Consulta los últimos 10 movimientos del Historial
+async function cargarHistorial() {
+    try {
+        const res = await fetch(CONFIG.ENDPOINTS.HISTORIAL);
+        const tbody = document.getElementById('tabla-historial');
+        
+        if (res.ok) {
+            const historial = await res.json();
+            tbody.innerHTML = ""; 
+            
+            if (historial.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center py-3">Sin registros</td></tr>';
+                return;
+            }
+
+            // Limitamos a los primeros 10 como marca la regla de negocio
+            historial.slice(0, 10).forEach((mov, index) => {
+                // Usamos "fecha_hora" tal cual viene en tu JSON
+                const fh = formatearFechaHora(mov.fecha_hora);
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td class="fw-bold">${mov.comando}</td>
+                    <td>${fh.fecha}</td>
+                    <td>${fh.hora}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        } else {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-3">Error al cargar historial</td></tr>';
+        }
+    } catch (e) {
+        console.error("Error al cargar historial:", e);
+        document.getElementById('tabla-historial').innerHTML = '<tr><td colspan="4" class="text-center text-danger py-3">Error de red</td></tr>';
     }
 }

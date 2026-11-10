@@ -2,9 +2,9 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <!-- Viewport estricto para evitar scroll y acomodar al 100% de la pantalla -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Control IoT - Vehículo</title>
+    <!-- Tu favicon actualizado -->
     <link rel="icon" type="image/x-icon" href="assets/favicon.png">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
@@ -37,59 +37,108 @@
             </div>
         </div>
 
-        <!-- Barra de acción en vivo -->
-        <div class="live-action-bar mb-2">
-            <span id="live-action-text" class="fw-bold">✨ SISTEMA INICIADO ✨</span>
+        <!-- Pestañas de Navegación (CONTROL / MONITOREO) -->
+        <div class="tabs-container mb-3">
+            <button id="tab-control" class="tab-btn active"><i class="fa-solid fa-gamepad me-1"></i> CONTROL</button>
+            <button id="tab-monitoreo" class="tab-btn"><i class="fa-solid fa-chart-line me-1"></i> MONITOREO</button>
         </div>
 
-        <!-- Botón prioritario de emergencia -->
-        <div class="emergency-container mb-3">
-            <button id="btn-detener" class="btn-stop-girly w-100 fw-bold fs-5 shadow"><i class="fa-solid fa-hand me-2"></i>DETENER SISTEMA</button>
-        </div>
-
-        <!-- Área de controles dinámicos (Grid Responsivo) -->
-        <div class="responsive-controls">
+        <!-- ========================================== -->
+        <!-- VISTA 1: CONTROL (Tu vista actual)         -->
+        <!-- ========================================== -->
+        <div id="view-control" class="view-section">
             
-            <!-- Botones centrales (Toggles) -->
-            <div class="toggles-container">
-                <button id="btn-foco" class="btn-toggle-girly" data-comando="9">
-                    <i class="fa-solid fa-lightbulb"></i> <span>Foco</span>
-                </button>
-                <button id="btn-sonido" class="btn-toggle-girly" data-comando="10">
-                    <i class="fa-solid fa-music"></i> <span>Sonido</span>
-                </button>
-                <button id="btn-velocidad" class="btn-toggle-girly" data-comando="11">
-                    <i class="fa-solid fa-bolt"></i> <span>Veloz</span>
-                </button>
+            <div class="live-action-bar mb-2">
+                <span id="live-action-text" class="fw-bold">✨ SISTEMA INICIADO ✨</span>
             </div>
 
-            <!-- Joystick Izquierdo (Tracción) -->
-            <div class="joystick-wrapper j-izq">
-                <div class="control-title">DESPLAZAMIENTO</div>
-                <div id="joystick-traccion" class="joystick-base">
-                    <div class="joystick-knob"></div>
+            <div class="emergency-container mb-3">
+                <button id="btn-detener" class="btn-stop-girly w-100 fw-bold fs-5 shadow"><i class="fa-solid fa-hand me-2"></i>DETENER SISTEMA</button>
+            </div>
+
+            <div class="responsive-controls">
+                <div class="toggles-container">
+                    <button id="btn-foco" class="btn-toggle-girly" data-comando="9">
+                        <i class="fa-solid fa-lightbulb"></i> <span>Foco</span>
+                    </button>
+                    <button id="btn-sonido" class="btn-toggle-girly" data-comando="10">
+                        <i class="fa-solid fa-music"></i> <span>Sonido</span>
+                    </button>
+                    <button id="btn-velocidad" class="btn-toggle-girly" data-comando="11">
+                        <i class="fa-solid fa-bolt"></i> <span>Veloz</span>
+                    </button>
+                </div>
+
+                <div class="joystick-wrapper j-izq">
+                    <div class="control-title">DESPLAZAMIENTO</div>
+                    <div id="joystick-traccion" class="joystick-base">
+                        <div class="joystick-knob"></div>
+                    </div>
+                </div>
+
+                <div class="joystick-wrapper j-der">
+                    <div class="control-title">CABINA/BRAZO</div>
+                    <div id="joystick-herramienta" class="joystick-base">
+                        <div class="joystick-knob"></div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Joystick Derecho (Cabina/Pala) -->
-            <div class="joystick-wrapper j-der">
-                <div class="control-title">CABINA/BRAZO</div>
-                <div id="joystick-herramienta" class="joystick-base">
-                    <div class="joystick-knob"></div>
+            <div class="demo-section mt-auto">
+                <div class="control-title text-start mb-1" style="font-size: 0.7rem;">SECUENCIAS AUTOMÁTICAS</div>
+                <div class="d-flex gap-2">
+                    <select id="select-demo" class="form-select select-girly shadow-sm">
+                        <option value="">Cargando demos...</option>
+                    </select>
+                    <button id="btn-play-demo" class="btn-play-girly px-3"><i class="fa-solid fa-play"></i></button>
                 </div>
             </div>
             
         </div>
 
-        <!-- Sección para la selección y ejecución de secuencias DEMO -->
-        <div class="demo-section mt-auto">
-            <div class="control-title text-start mb-1" style="font-size: 0.7rem;">SECUENCIAS AUTOMÁTICAS</div>
-            <div class="d-flex gap-2">
-                <select id="select-demo" class="form-select select-girly shadow-sm">
-                    <option value="">Cargando demos...</option>
-                </select>
-                <button id="btn-play-demo" class="btn-play-girly px-3"><i class="fa-solid fa-play"></i></button>
+        <!-- ========================================== -->
+        <!-- VISTA 2: MONITOREO (Nueva Vista)           -->
+        <!-- ========================================== -->
+        <div id="view-monitoreo" class="view-section" style="display: none;">
+            
+            <!-- Tarjeta de Último Movimiento -->
+            <div class="ultimo-movimiento-card mb-3">
+                <div class="control-title text-start mb-2"><i class="fa-solid fa-satellite-dish me-1"></i> ÚLTIMO ESTADO REPORTADO</div>
+                <div class="um-contenido text-center">
+                    <div id="um-comando" class="um-comando">CARGANDO...</div>
+                    <div class="um-fecha-hora">
+                        <i class="fa-regular fa-calendar me-1"></i><span id="um-fecha">--/--/----</span> 
+                        <span class="mx-2">|</span>
+                        <i class="fa-regular fa-clock me-1"></i><span id="um-hora">--:--:--</span>
+                    </div>
+                </div>
             </div>
+
+            <!-- Tabla de Historial (10 movimientos) -->
+            <div class="historial-container">
+                <div class="control-title text-start mb-2"><i class="fa-solid fa-list-ul me-1"></i> ÚLTIMOS 10 MOVIMIENTOS</div>
+                <div class="table-responsive table-wrapper-girly">
+                    <table class="table table-dark table-girly mb-0">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Movimiento</th>
+                                <th>Fecha</th>
+                                <th>Hora</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabla-historial">
+                            <tr><td colspan="4" class="text-center">Cargando registros...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+        </div>
+
+        <!-- Créditos exigidos en la rúbrica -->
+        <div class="footer-credits mt-auto text-center pt-2 pb-1">
+            Desarrollado por Maricarmen Suárez Olivares · 2026
         </div>
 
     </div>
