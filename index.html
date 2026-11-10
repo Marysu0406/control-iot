@@ -2,112 +2,100 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- Viewport estricto para evitar scroll y acomodar al 100% de la pantalla -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Control IoT - Vehículo</title>
-    <link rel="icon" type="image/x-icon" href="assets/favicon.png">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="assets/css/styles.css">
 </head>
-<body class="iot-theme">
+<body class="girly-theme">
+    <div class="remote-container">
+        
+        <!-- Barra de navegación superior -->
+        <nav class="top-nav">
+            <div class="brand-title"><i class="fa-solid fa-gamepad text-pink me-2"></i>IoT CONTROL</div>
+            <div class="vehiculo-badge" id="vehiculo-info"><i class="fa-solid fa-car-side me-1"></i>Vehículo 1</div>
+        </nav>
 
-    <!-- Navbar Transparente -->
-    <nav class="navbar glass-navbar py-3">
-        <div class="container-fluid px-4">
-            <span class="navbar-brand text-white fw-bold tracking-wide">
-                <i class="fa-solid fa-microchip text-info me-2"></i>IoT<span class="text-info fw-light">CONTROL</span>
-            </span>
-            <span class="badge glass-badge fs-6 px-3 py-2" id="vehiculo-info">
-                <i class="fa-solid fa-car me-2"></i>Conectando...
-            </span>
-        </div>
-    </nav>
-
-    <main class="container my-4 pb-5">
-        <!-- Panel de Conectividad (3 Indicadores) y Consola de Acción -->
-        <div class="row mb-4 g-3">
-            <div class="col-12">
-                <div class="glass-card p-3">
-                    <div class="row align-items-center text-center g-3">
-                        <div class="col-4 border-end border-secondary border-opacity-25">
-                            <small class="text-uppercase text-muted fw-bold d-block mb-2 text-xs">WebSocket WSS</small>
-                            <span id="status-wss" class="status-indicator warning"><i class="fa-solid fa-circle-notch fa-spin"></i></span>
-                        </div>
-                        <div class="col-4 border-end border-secondary border-opacity-25">
-                            <small class="text-uppercase text-muted fw-bold d-block mb-2 text-xs">API AWS</small>
-                            <span id="status-api" class="status-indicator warning"><i class="fa-solid fa-arrows-rotate"></i></span>
-                        </div>
-                        <div class="col-4">
-                            <small class="text-uppercase text-muted fw-bold d-block mb-2 text-xs">Amazon RDS</small>
-                            <span id="status-rds" class="status-indicator inactive"><i class="fa-solid fa-circle-question me-1"></i>Sin verificar</span>
-                        </div>
-                    </div>
-                    <!-- Display de Última Acción -->
-                    <div class="mt-3 pt-2 border-top border-secondary border-opacity-25 text-center">
-                        <div class="digital-display" id="last-action">
-                            SISTEMA INICIADO - ESPERANDO COMANDOS
-                        </div>
-                    </div>
+        <!-- Panel de indicadores de estado -->
+        <div class="status-panel">
+            <div class="d-flex justify-content-between text-center w-100">
+                <div class="status-item">
+                    <div class="status-label">WSS</div>
+                    <div id="status-wss" class="status-indicator warning"><i class="fa-solid fa-spinner fa-spin"></i></div>
+                </div>
+                <div class="status-item border-start border-end border-pink px-2">
+                    <div class="status-label">API</div>
+                    <div id="status-api" class="status-indicator warning"><i class="fa-solid fa-spinner fa-spin"></i></div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">RDS</div>
+                    <div id="status-rds" class="status-indicator warning"><i class="fa-solid fa-spinner fa-spin"></i></div>
                 </div>
             </div>
         </div>
 
-        <div class="row g-4">
-            <!-- Columna Joystick -->
-            <div class="col-md-6 col-lg-5">
-                <div class="glass-card h-100 d-flex flex-column">
-                    <h6 class="card-title text-center text-white-50 text-uppercase tracking-wide mb-4">Tracción Principal</h6>
-                    <div class="flex-grow-1 d-flex flex-column align-items-center justify-content-center">
-                        <div class="joystick-wrapper">
-                            <div id="joystick-zone" class="joystick-container"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <!-- Barra de acción en vivo -->
+        <div class="live-action-bar mb-2">
+            <span id="live-action-text" class="fw-bold">✨ SISTEMA INICIADO ✨</span>
+        </div>
 
-            <!-- Columna Controles Adicionales -->
-            <div class="col-md-6 col-lg-7">
-                <!-- Botón DETENER Prioritario -->
-                <button id="btn-detener" class="btn btn-stop w-100 shadow-lg py-3 mb-4" data-comando="13">
-                    <i class="fa-solid fa-hexagon-nodes me-2"></i>DETENER SISTEMA
+        <!-- Botón prioritario de emergencia -->
+        <div class="emergency-container mb-3">
+            <button id="btn-detener" class="btn-stop-girly w-100 fw-bold fs-5 shadow"><i class="fa-solid fa-hand me-2"></i>DETENER SISTEMA</button>
+        </div>
+
+        <!-- Área de controles dinámicos (Grid Responsivo) -->
+        <div class="responsive-controls">
+            
+            <!-- Botones centrales (Toggles) -->
+            <div class="toggles-container">
+                <button id="btn-foco" class="btn-toggle-girly" data-comando="9">
+                    <i class="fa-solid fa-lightbulb"></i> <span>Foco</span>
                 </button>
+                <button id="btn-sonido" class="btn-toggle-girly" data-comando="10">
+                    <i class="fa-solid fa-music"></i> <span>Sonido</span>
+                </button>
+                <button id="btn-velocidad" class="btn-toggle-girly" data-comando="11">
+                    <i class="fa-solid fa-bolt"></i> <span>Veloz</span>
+                </button>
+            </div>
 
-                <div class="glass-card mb-4">
-                    <h6 class="card-title text-center text-white-50 text-uppercase tracking-wide mb-3">Sistemas Auxiliares</h6>
-                    <div class="row g-2">
-                        <div class="col-6"><button class="btn btn-glass w-100 btn-comando" data-comando="4"><i class="fa-solid fa-rotate-left mb-1 d-block"></i>Cabina Izq</button></div>
-                        <div class="col-6"><button class="btn btn-glass w-100 btn-comando" data-comando="3"><i class="fa-solid fa-rotate-right mb-1 d-block"></i>Cabina Der</button></div>
-                        <div class="col-6"><button class="btn btn-glass w-100 btn-comando" data-comando="9"><i class="fa-solid fa-arrow-up mb-1 d-block text-info"></i>Subir Pala</button></div>
-                        <div class="col-6"><button class="btn btn-glass w-100 btn-comando" data-comando="10"><i class="fa-solid fa-arrow-down mb-1 d-block text-info"></i>Bajar Pala</button></div>
-                        <div class="col-4"><button class="btn btn-glass w-100 btn-comando" data-comando="5"><i class="fa-regular fa-lightbulb mb-1 d-block text-warning"></i>Foco</button></div>
-                        <div class="col-4"><button class="btn btn-glass w-100 btn-comando" data-comando="6"><i class="fa-solid fa-volume-high mb-1 d-block text-primary"></i>Sonido</button></div>
-                        <div class="col-4"><button class="btn btn-glass w-100 btn-comando" data-comando="7"><i class="fa-solid fa-gauge-high mb-1 d-block text-success"></i>Velocidad</button></div>
-                    </div>
-                </div>
-
-                <!-- Selector de DEMO -->
-                <div class="glass-card">
-                    <h6 class="card-title text-center text-white-50 text-uppercase tracking-wide mb-3">Secuencias Automáticas</h6>
-                    <div class="input-group">
-                        <select id="select-demo" class="form-select glass-select border-0">
-                            <option value="" selected disabled>Cargando memoria...</option>
-                        </select>
-                        <button id="btn-ejecutar-demo" class="btn btn-glass-success px-4"><i class="fa-solid fa-play"></i></button>
-                    </div>
+            <!-- Joystick Izquierdo (Tracción) -->
+            <div class="joystick-wrapper j-izq">
+                <div class="control-title">DESPLAZAMIENTO</div>
+                <div id="joystick-traccion" class="joystick-base">
+                    <div class="joystick-knob"></div>
                 </div>
             </div>
+
+            <!-- Joystick Derecho (Cabina/Pala) -->
+            <div class="joystick-wrapper j-der">
+                <div class="control-title">CABINA/BRAZO</div>
+                <div id="joystick-herramienta" class="joystick-base">
+                    <div class="joystick-knob"></div>
+                </div>
+            </div>
+            
         </div>
-    </main>
 
-    <footer class="footer mt-auto py-3 text-center">
-        <small class="text-white-50 tracking-wide">Desarrollado por Maricarmen Suárez Olivares · 2026</small>
-    </footer>
+        <!-- Sección para la selección y ejecución de secuencias DEMO -->
+        <div class="demo-section mt-auto">
+            <div class="control-title text-start mb-1" style="font-size: 0.7rem;">SECUENCIAS AUTOMÁTICAS</div>
+            <div class="d-flex gap-2">
+                <select id="select-demo" class="form-select select-girly shadow-sm">
+                    <option value="">Cargando demos...</option>
+                </select>
+                <button id="btn-play-demo" class="btn-play-girly px-3"><i class="fa-solid fa-play"></i></button>
+            </div>
+        </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.10.1/nipplejs.min.js"></script>
-    <script type="module" src="js/config.js"></script>
-    <script type="module" src="js/api.js"></script>
-    <script type="module" src="js/joystick.js"></script>
-    <script type="module" src="js/app.js"></script>
+    </div>
+
+    <script src="assets/js/config.js"></script>
+    <script src="assets/js/api.js"></script>
+    <script src="assets/js/joystick.js"></script>
+    <script src="assets/js/app.js"></script>
 </body>
 </html>
