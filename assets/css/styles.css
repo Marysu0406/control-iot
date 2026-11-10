@@ -13,13 +13,19 @@ html, body {
     font-family: 'Inter', system-ui, sans-serif;
     -webkit-user-select: none;
     user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
     touch-action: none;
 }
 body {
     position: fixed; /* evita rebotes elásticos en móviles */
-    inset: 0;
-    height: 100vh;   /* fallback */
-    height: 100dvh;  /* alto real visible en móviles */
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 100vh;                  /* respaldo */
+    height: -webkit-fill-available; /* iOS antiguo */
+    height: 100dvh;                 /* alto real visible en móviles modernos */
 }
 
 .text-pink { color: #ff79c6 !important; }
@@ -35,6 +41,7 @@ body {
     margin: 0 auto;
     box-sizing: border-box;
     overflow: hidden !important;
+    padding: 8px 12px; /* respaldo */
     padding:
         max(8px, env(safe-area-inset-top))
         max(12px, env(safe-area-inset-right))
@@ -218,9 +225,16 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    /* el joystick ocupa el espacio disponible, sea ancho o alto */
-    --js: clamp(60px, min(42cqw, 100cqh - 95px), 220px);
+    /* Respaldo para navegadores sin container queries (iOS 15 o menor) */
+    --js: clamp(60px, min(38vw, 22vh), 220px);
 }
+/* Navegadores modernos: usan el espacio real disponible */
+@supports (width: 1cqw) {
+    .joystick-wrapper {
+        --js: clamp(60px, min(42cqw, 100cqh - 95px), 220px);
+    }
+}
+
 .control-title {
     color: #bd93f9;
     font-size: 0.65rem;
@@ -313,6 +327,8 @@ body {
     border-radius: 10px;
     border: 1px solid #443755;
     overflow-y: auto; /* scroll interno solo dentro de la tabla si excede */
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y; /* permite deslizar solo dentro de la tabla */
     flex-grow: 1;
     min-height: 0;
 }
@@ -355,7 +371,12 @@ body {
         gap: 16px;
     }
     .joystick-wrapper {
-        --js: clamp(60px, min(30cqw, 100cqh - 28px), 240px);
+        --js: clamp(60px, min(26vw, 40vh), 240px); /* respaldo */
+    }
+    @supports (width: 1cqw) {
+        .joystick-wrapper {
+            --js: clamp(60px, min(30cqw, 100cqh - 28px), 240px);
+        }
     }
     .toggles-container {
         flex-direction: column;
