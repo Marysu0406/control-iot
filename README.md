@@ -1,20 +1,24 @@
-# Control de Vehículo IoT (Frontend)
+# Control y Monitoreo de Vehículo IoT (Frontend)
 
-Panel de control web moderno, responsivo y orientado a móviles para el pilotaje de un vehículo/excavadora IoT. Desarrollado en JavaScript vainilla (ES6) y estilizado con Bootstrap y CSS Grid/Flexbox. 
+Panel de control web moderno, responsivo y orientado a móviles para el pilotaje y monitoreo en tiempo real de una excavadora/vehículo IoT. Desarrollado en JavaScript vainilla (ES6+), Bootstrap 5 y CSS Grid/Flexbox bajo una arquitectura de SPA (Single Page Application).
 
-Se comunica de forma segura mediante un canal cifrado de WebSockets (`WSS`) hacia un servidor backend en AWS EC2, orquestando lógica almacenada en Amazon RDS.
+Se comunica de forma segura mediante un canal cifrado de WebSockets (`WSS`) y peticiones REST hacia un servidor backend en AWS EC2, interactuando con una base de datos en Amazon RDS MySQL.
 
-## Características de la Interfaz
-- **Arquitectura de Cero Scroll:** El diseño se ajusta milimétricamente al 100% de la ventana (100vh), garantizando que los joysticks no muevan el navegador en móviles.
-- **Sistema de Doble Joystick Virtual:** Implementación matemática propia de joysticks capacitivos usando coordenadas del plano cartesiano, un control exclusivo para tracción (Avanzar/Retroceder/Rotar) y otro para herramienta (Cabina y Pala).
-- **Control de Actuadores y Toggles:** Botones responsivos con efectos de encendido de luz (box-shadow neon glow) en Foco, Sonido y Velocidad para proporcionar retroalimentación visual táctil inmediata.
-- **Monitor de Acción en Vivo (Live Action Bar):** Barra frontal que parsea el envío de comandos (JSON) al texto natural, demostrando la orden que procesará el hardware de manera instantánea.
-- **Botón Prioritario de Interrupción:** Comando físico mapeado al número `13` (`DETENER SISTEMA`) para garantizar protocolos de parada remota segura.
+---
 
-## Requisitos y Despliegue
-Este repositorio está estructurado para despliegue directo en **GitHub Pages**. Todos los archivos estáticos (`.html`, `.js`, `.css`) se interpretan desde la raíz y el directorio `/assets`. 
+## 🚀 Características del Sistema
 
-**Stack Tecnológico:** HTML5, CSS3, JavaScript.  
-**Dependencias Externas:** CDN de Bootstrap 5.3 y FontAwesome 6.4.
+- **Arquitectura SPA (Single Page Application):** Dos vistas integradas (`CONTROL` y `MONITOREO`) que conmutan mediante pestañas sin recargar el navegador, manteniendo la sesión de WebSocket siempre activa.
+- **Módulo de Control (Práctica 4.1):**
+  - **Doble Joystick Virtual:** Uno dedicado al desplazamiento (Adelante, Atrás, Izquierda, Derecha) y otro para la cabina y el brazo/pala.
+  - **Actuadores y Toggles:** Botones responsivos con efectos de iluminación neón (`box-shadow`) para Foco, Sonido y Velocidad.
+  - **Secuencias Automáticas (DEMO):** Selector dinámico alimentado directamente desde la base de datos RDS.
+  - **Botón de Emergencia:** Paro prioritario mapeado al comando de interrupción.
+- **Módulo de Monitoreo (Práctica 4.2):**
+  - **Tarjeta de Último Estado:** Muestra en tiempo real el comando activo, fecha y hora confiables.
+  - **Tabla de Historial Persistido:** Renderiza de forma estructurada los últimos 10 movimientos individuales guardados en MySQL, con desplazamiento interno y diseño adaptativo.
+- **Indicadores Independientes de Conectividad:** Monitoreo visual en tiempo real del estado del WebSocket (`WSS`), la API REST en AWS y la base de datos Amazon RDS.
+
+---
 
 *Desarrollado y estructurado por Maricarmen Suárez Olivares (MSO) - 2026*
