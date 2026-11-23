@@ -422,3 +422,22 @@ body {
     .toggles-container { gap: 4px; }
     .control-title { margin-bottom: 2px; font-size: 0.55rem; }
 }
+/* Administración 4.3 - se integra sin reemplazar estilos de CONTROL/MONITOREO */
+.tabs-container {display:flex;gap:5px;flex-wrap:wrap}
+.tabs-container .tab-btn {flex:1 1 29%;min-width:0;font-size:clamp(.65rem,2vw,.9rem);padding-inline:5px}
+.admin43 {overflow-y:auto;overflow-x:hidden;gap:12px;min-height:0;max-height:70vh;padding:3px 4px 24px;text-align:left}
+.admin43-card {background:#fff4f8;border:1px solid #f4bfd1;border-radius:14px;padding:15px;margin-bottom:10px;color:#542d43}
+.admin43-card h2 {font-size:1.3rem;margin-bottom:8px}
+.admin43-card h3 {font-size:1rem;margin:10px 0}
+.admin43-card form {display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 0}
+.admin43-card form label {display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.admin43-card input:not([type=checkbox]),.admin43-card select,.admin43-card textarea {background:white;border:1px solid #e9a8c6;border-radius:8px;padding:9px;min-width:140px;max-width:100%;flex:1 1 150px;color:#3e2334}
+.admin43-card button {background:#d63384;border:0;border-radius:8px;padding:9px 12px;color:white;margin:3px;cursor:pointer}
+.admin43-card button:hover {background:#ad2166}
+.admin43-card .table-responsive {overflow-x:auto}
+.admin43-card table {font-size:.78rem;width:100%;border-collapse:collapse}
+.admin43-card th,.admin43-card td {padding:7px;border-bottom:1px solid #eed0dc;color:#542d43}
+.admin43-card [hidden],.admin43 [hidden] {display:none!important}
+#admin-msg {min-height:1.6rem;font-size:.85rem}
+#admin-aviso-control {font-size:.8rem;color:#a02653}
+button:disabled {opacity:.5;cursor:not-allowed}

@@ -42,18 +42,19 @@ function showLiveAction(text) {
 // ==========================================
 async function sendCommand(idComando, isDemo = false) {
     if (isDemo) return; // Las demos usan su propio fetch en su botón
+    if (!window.IOT43?.canControl()) {window.IOT43?.reject();return;}
     
     try {
         const url = `https://${CONFIG.API_URL_BASE}/api/movimiento`;
         await fetch(url, {
             method: 'POST', // Esto asegura que AWS ejecute el Stored Procedure y guarde la hora real
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...window.IOT43.headers() },
             body: JSON.stringify({
                 id_vehiculo: CONFIG.VEHICULO_ID,
                 id_comando: parseInt(idComando),
                 origen: "WEB"
             })
-        });
+        }).then(r => {if(!r.ok)showLiveAction('⚠️ PERMISO DENEGADO O ERROR');});
     } catch (error) {
         console.error("Error de red al enviar comando:", error);
         showLiveAction("⚠️ ERROR DE RED");
@@ -182,10 +183,11 @@ document.getElementById('btn-detener').addEventListener('click', () => {
 document.getElementById('btn-play-demo').addEventListener('click', async () => {
     const demoId = ui.selectDemo.value;
     if (demoId) {
+        if (!window.IOT43?.canDemo()) {window.IOT43?.reject();return;}
         showLiveAction(`INICIANDO DEMO...`);
         try {
             const url = `https://${CONFIG.API_URL_BASE}/api/vehiculos/${CONFIG.VEHICULO_ID}/demos/${demoId}/ejecutar`;
-            const res = await fetch(url, { method: 'POST' });
+            const res = await fetch(url, { method: 'POST', headers: window.IOT43.headers() });
             if (!res.ok) showLiveAction("⚠️ ERROR AL INICIAR DEMO");
         } catch (error) {
             console.error(error);

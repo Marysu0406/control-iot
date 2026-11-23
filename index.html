@@ -49,6 +49,7 @@ document.addEventListener('touchmove', ev => {
         <div class="tabs-container mb-3">
             <button id="tab-control" class="tab-btn active"><i class="fa-solid fa-gamepad me-1"></i> CONTROL</button>
             <button id="tab-monitoreo" class="tab-btn"><i class="fa-solid fa-chart-line me-1"></i> MONITOREO</button>
+            <button id="tab-administracion" class="tab-btn"><i class="fa-solid fa-users-gear me-1"></i> ADMINISTRACIÓN</button>
         </div>
 
         <!-- ========================================== -->
@@ -144,6 +145,94 @@ document.addEventListener('touchmove', ev => {
             
         </div>
 
+
+        <!-- VISTA 3: ADMINISTRACIÓN 4.3 -->
+        <section id="view-administracion" class="view-section admin43" style="display:none">
+          <div class="admin43-card"><h2>Administración 4.3</h2><p id="admin-identidad">Sin sesión</p>
+          <div id="admin-msg" role="status" aria-live="polite"></div>
+          <p id="admin-aviso-control">El control requiere iniciar sesión.</p>
+          <form id="adm-login-form"><div id="admin-login">
+            <label>Correo electrónico<input id="adm-correo" type="email" autocomplete="username" required></label>
+            <label>Contraseña<input id="adm-password" type="password" autocomplete="current-password" required></label>
+            <button type="submit">Iniciar sesión</button></div></form>
+          <button id="admin-logout" type="button" hidden>Cerrar sesión</button>
+          <div id="admin-flota" hidden><h3>Mis vehículos</h3><p id="admin-mi-flota"></p></div>
+          </div>
+          <div id="admin-invitado" class="admin43-card"><h3>Invitado · exhibición</h3>
+            <p>Acceso temporal exclusivo durante 10 minutos. Solo demostraciones de fábrica.</p>
+            <button id="adm-cargar-exhibicion">Ver unidades de exhibición</button>
+            <select id="adm-select-invitado"><option value="">Seleccione vehículo</option></select>
+            <button id="adm-reservar">Reservar demostración</button>
+            <button id="adm-finalizar-reserva">Finalizar reserva</button>
+          </div>
+          <div id="admin-panel" hidden>
+            <div class="admin43-card"><h3>Clientes / compradores</h3>
+              <form id="adm-crear-usuario"><input id="adm-nombre-usuario" placeholder="Nombre del comprador" required>
+              <input id="adm-correo-usuario" type="email" placeholder="Correo" required>
+              <input id="adm-clave-usuario" type="password" minlength="12" placeholder="Contraseña inicial (12+)" required>
+              <button>Registrar comprador</button></form>
+              <form id="adm-editar-usuario"><select id="adm-edit-usuario"></select>
+              <input id="adm-edit-nombre" placeholder="Nuevo nombre (opcional)">
+              <label><input id="adm-edit-activo" type="checkbox" checked> Cuenta activa</label>
+              <button>Actualizar comprador</button></form>
+              <div class="table-responsive"><table id="adm-tabla-usuarios" class="table"></table></div>
+            </div>
+            <div class="admin43-card"><h3>Catálogo de modelos</h3>
+              <form id="adm-crear-modelo"><input id="adm-nombre-modelo" placeholder="Nombre del modelo" required>
+              <input id="adm-desc-modelo" placeholder="Descripción">
+              <textarea id="adm-capacidades" placeholder='Capacidades JSON, p. ej. {"brazo":true}'></textarea>
+              <button>Crear modelo</button></form>
+              <form id="adm-editar-modelo"><select id="adm-edit-modelo"></select>
+              <input id="adm-edit-nombre-modelo" placeholder="Nombre actualizado">
+              <input id="adm-edit-desc-modelo" placeholder="Descripción actualizada">
+              <label><input id="adm-edit-modelo-activo" type="checkbox" checked> Modelo activo</label>
+              <button>Actualizar modelo</button></form>
+              <div class="table-responsive"><table id="adm-tabla-modelos" class="table"></table></div>
+            </div>
+            <div class="admin43-card"><h3>Unidades físicas y propietarios</h3>
+              <form id="adm-nueva-unidad"><input id="adm-unidad-nombre" placeholder="Nombre del vehículo" required>
+              <input id="adm-unidad-desc" placeholder="Descripción">
+              <input id="adm-unidad-ip" placeholder="IP asignada (si aplica)">
+              <button>Dar de alta unidad</button></form>
+              <form id="adm-guardar-unidad">
+              <select id="adm-vehiculo" required></select><select id="adm-modelo"></select>
+              <select id="adm-propietario"></select>
+              <select id="adm-estado-comercial">
+                <option>DISPONIBLE</option><option>VENDIDO</option><option>EXHIBICION</option><option>MANTENIMIENTO</option>
+              </select>
+              <input id="adm-serie" placeholder="Número de serie"><button>Guardar asignación</button>
+              </form><div class="table-responsive"><table id="adm-tabla-vehiculos" class="table"></table></div>
+            </div>
+            <div class="admin43-card"><h3>Demostraciones</h3>
+              <p>Crear secuencias y ajustar sus movimientos. Los invitados solo ejecutan demos FABRICA.</p>
+              <form id="adm-crear-demo"><select id="adm-crear-demo-unidad"></select>
+              <input id="adm-nombre-demo" placeholder="Nombre de demo" required>
+              <input id="adm-desc-demo" placeholder="Descripción"><button>Crear demo</button></form>
+              <form id="adm-mov-demo"><select id="adm-mov-demo-id"></select>
+              <select id="adm-mov-comando"><option value="1">Adelante</option><option value="2">Atrás</option>
+              <option value="3">Izquierda</option><option value="4">Derecha</option>
+              <option value="5">Cabina izquierda</option><option value="6">Cabina derecha</option>
+              <option value="7">Subir pala</option><option value="8">Bajar pala</option>
+              <option value="13">Detener sistema</option></select>
+              <input id="adm-mov-orden" type="number" min="1" value="1" placeholder="Orden" required>
+              <input id="adm-mov-duracion" type="number" min="100" max="10000" value="1000" placeholder="Duración ms" required>
+              <input id="adm-mov-pausa" type="number" min="0" max="10000" value="500" placeholder="Pausa ms" required>
+              <button>Agregar movimiento</button></form>
+              <form id="adm-eliminar-mov"><input id="adm-eliminar-mov-id" type="number" min="1" placeholder="ID movimiento"><button>Eliminar movimiento por ID</button></form>
+              <button id="adm-cargar-movs">Ver movimientos de demo seleccionada</button>
+              <div class="table-responsive"><table id="adm-tabla-movs" class="table"></table></div>
+              <form id="adm-guardar-demo"><select id="adm-demo"></select>
+              <select id="adm-tipo-demo"><option value="FABRICA">FABRICA</option>
+                 <option value="PRIVADA">PRIVADA</option><option value="LEGADO">LEGADO</option></select>
+              <button>Guardar tipo de demo</button></form>
+              <div class="table-responsive"><table id="adm-tabla-demos" class="table"></table></div>
+            </div>
+            <div class="admin43-card"><h3>Auditoría de administración</h3>
+              <button id="adm-cargar-auditoria">Consultar últimos 50 eventos</button>
+              <div class="table-responsive"><table id="adm-tabla-auditoria" class="table"></table></div>
+            </div>
+          </div>
+        </section>
         <!-- Créditos exigidos en la rúbrica -->
         <div class="footer-credits mt-auto text-center pt-2 pb-1">
             Desarrollado por Maricarmen Suárez Olivares · 2026
@@ -155,5 +244,6 @@ document.addEventListener('touchmove', ev => {
     <script src="assets/js/api.js"></script>
     <script src="assets/js/joystick.js"></script>
     <script src="assets/js/app.js"></script>
+    <script src="assets/js/admin43.js"></script>
 </body>
 </html>
