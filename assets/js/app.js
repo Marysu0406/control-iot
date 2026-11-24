@@ -1,34 +1,27 @@
 
 /*
- * =====================================================
- * PLATAFORMA IoT
- * CONTROL 4.1 + MONITOREO 4.2
- * =====================================================
- *
- * Backend: FastAPI - AWS EC2
- * Base de datos: Amazon RDS MySQL
- * Comunicación: HTTPS / WSS
- *
- * Administración 4.3 gestiona la navegación
- * y los permisos de los usuarios.
- *
- * CATÁLOGO:
- * 1  Avanzar
- * 2  Retroceder
- * 3  Girar cabina izquierda
- * 4  Girar cabina derecha
- * 5  Foco
- * 6  Sonido
- * 7  Velocidad
- * 8  Power
- * 9  Subir garra
- * 10 Bajar garra
- * 11 Girar carrito derecha
- * 12 Girar carrito izquierda
- * 14 Apagar todo
- */
+=========================================================
+PLATAFORMA IoT
+CONTROL 4.1 + MONITOREO 4.2
+=========================================================
+
+Vehículos dinámicos y permisos individuales.
+
+ADMINISTRADOR:
+    Control de sus unidades seleccionadas.
+
+USUARIO:
+    Control de su vehículo según permisos RDS.
+
+INVITADO:
+    Control temporal de la unidad reservada.
+
+Los permisos definitivos se verifican en FastAPI.
+=========================================================
+*/
 
 "use strict";
+
 
 // =====================================================
 // ELEMENTOS DE LA INTERFAZ
@@ -39,49 +32,213 @@ const ui = {
     api: document.getElementById("status-api"),
     rds: document.getElementById("status-rds"),
 
+    vehiculoInfo: document.getElementById("vehiculo-info"),
     liveText: document.getElementById("live-action-text"),
 
     selectDemo: document.getElementById("select-demo"),
-
     botonDemo: document.getElementById("btn-play-demo"),
-
     botonApagar: document.getElementById("btn-detener"),
 
     toggles: Array.from(
         document.querySelectorAll(".btn-toggle-girly")
     ),
 
+    joystickTraccion:
+        document.getElementById("joystick-traccion"),
+
+    joystickHerramienta:
+        document.getElementById("joystick-herramienta"),
+
     ultimoComando: document.getElementById("um-comando"),
-
     ultimaFecha: document.getElementById("um-fecha"),
-
     ultimaHora: document.getElementById("um-hora"),
-
     tablaHistorial: document.getElementById("tabla-historial")
 };
 
+
 // =====================================================
-// VARIABLES
+// ESTADO DEL SISTEMA
 // =====================================================
 
 let ws = null;
-
-let enDemo = false;
-
-let fueEmergencia = false;
-
+let wsVehiculoId = null;
 let reconexionWS = null;
 
+let vehiculoActivoId = null;
+let generacionVehiculo = 0;
+
+let enDemo = false;
+let enviandoDemo = false;
+let fueEmergencia = false;
 let inicializado = false;
 
-// Evita repetir la orden de apagado cuando
-// el joystick ya está liberado.
 let traccionActiva = false;
-
 let herramientaActiva = false;
 
+
 // =====================================================
-// FUNCIONES GENERALES
+// CATÁLOGO DEFINITIVO
+// =====================================================
+
+const NOMBRES_COMANDOS = {
+    1: "AVANZAR",
+    2: "RETROCEDER",
+    3: "GIRAR CABINA IZQUIERDA",
+    4: "GIRAR CABINA DERECHA",
+    5: "FOCO",
+    6: "SONIDO",
+    7: "VELOCIDAD",
+    8: "POWER",
+    9: "SUBIR GARRA",
+    10: "BAJAR GARRA",
+    11: "GIRAR CARRITO DERECHA",
+    12: "GIRAR CARRITO IZQUIERDA",
+    14: "APAGAR TODO"
+};
+
+const COMANDOS_VALIDOS = new Set(
+    Object.keys(NOMBRES_COMANDOS).map(Number)
+);
+
+
+// =====================================================
+// SESIÓN Y PERMISOS
+// =====================================================
+
+function obtenerRol() {
+    if (
+        window.IOT43 &&
+        typeof window.IOT43.getRole === "function"
+    ) {
+        return window.IOT43.getRole();
+    }
+
+    return "SIN_SESION";
+}
+
+function validarId(valor) {
+    if (
+        valor === null ||
+        valor === undefined ||
+        valor === ""
+    ) {
+        return null;
+    }
+
+    const numero = Number(valor);
+
+    if (
+        !Number.isSafeInteger(numero) ||
+        numero <= 0
+    ) {
+        return null;
+    }
+
+    return numero;
+}
+
+function obtenerVehiculoSesion() {
+    if (
+        !window.IOT43 ||
+        typeof window.IOT43.getVehicle !== "function"
+    ) {
+        return null;
+    }
+
+    if (obtenerRol() === "SIN_SESION") {
+        return null;
+    }
+
+    return validarId(
+        window.IOT43.getVehicle()
+    );
+}
+
+function obtenerVehiculoActivo() {
+    return validarId(vehiculoActivoId);
+}
+
+function puedeEnviarComando(comando) {
+    /*
+     * Se comprueba el permiso individual.
+     *
+     * No basta con que canControl() sea true.
+     *
+     * Ejemplo:
+     * Mary puede utilizar FOCO pero no POWER.
+     */
+
+    if (
+        !window.IOT43 ||
+        typeof window.IOT43.canCommand !== "function"
+    ) {
+        return false;
+    }
+
+    const idVehiculo = obtenerVehiculoActivo();
+
+    if (!idVehiculo) return false;
+
+    if (obtenerVehiculoSesion() !== idVehiculo) {
+        return false;
+    }
+
+    return Boolean(
+        window.IOT43.canCommand(Number(comando))
+    );
+}
+
+function puedeEjecutarDemo() {
+    if (
+        !window.IOT43 ||
+        typeof window.IOT43.canDemo !== "function"
+    ) {
+        return false;
+    }
+
+    return Boolean(
+        obtenerVehiculoActivo() &&
+        obtenerVehiculoSesion() ===
+            obtenerVehiculoActivo() &&
+        window.IOT43.canDemo()
+    );
+}
+
+function puedeMonitorear() {
+    if (
+        !window.IOT43 ||
+        typeof window.IOT43.canMonitor !== "function"
+    ) {
+        return false;
+    }
+
+    return Boolean(
+        obtenerVehiculoActivo() &&
+        window.IOT43.canMonitor()
+    );
+}
+
+function obtenerHeaders() {
+    const headers = {
+        "Content-Type": "application/json"
+    };
+
+    if (
+        window.IOT43 &&
+        typeof window.IOT43.headers === "function"
+    ) {
+        Object.assign(
+            headers,
+            window.IOT43.headers()
+        );
+    }
+
+    return headers;
+}
+
+
+// =====================================================
+// MENSAJES Y ESTADOS
 // =====================================================
 
 function showLiveAction(texto) {
@@ -100,6 +257,116 @@ function marcarIndicador(elemento, estado, icono) {
         '<i class="fa-solid fa-' + icono + '"></i>';
 }
 
+function nombreComando(numero) {
+    return NOMBRES_COMANDOS[Number(numero)] || "";
+}
+
+function mostrarRechazo(comando = null) {
+    const nombre = comando
+        ? nombreComando(comando)
+        : "OPERACIÓN";
+
+    showLiveAction(
+        "⚠️ SIN PERMISO PARA " + nombre
+    );
+
+    console.warn(
+        "[PERMISOS] Operación rechazada:",
+        nombre
+    );
+
+    if (
+        window.IOT43 &&
+        typeof window.IOT43.reject === "function"
+    ) {
+        window.IOT43.reject();
+    }
+}
+
+
+// =====================================================
+// ACTIVAR Y DESACTIVAR CONTROLES VISUALES
+// =====================================================
+
+function actualizarControlesVisuales() {
+    /*
+     * Estos cambios son visuales.
+     * FastAPI realiza la autorización definitiva.
+     */
+
+    ui.toggles.forEach(boton => {
+        const comando = Number(
+            boton.dataset.comando
+        );
+
+        const autorizado =
+            puedeEnviarComando(comando);
+
+        boton.disabled = !autorizado;
+
+        boton.setAttribute(
+            "aria-disabled",
+            String(!autorizado)
+        );
+
+        if (!autorizado) {
+            boton.classList.remove("active");
+        }
+    });
+
+    if (ui.botonApagar) {
+        const autorizado =
+            puedeEnviarComando(14);
+
+        ui.botonApagar.disabled = !autorizado;
+
+        ui.botonApagar.setAttribute(
+            "aria-disabled",
+            String(!autorizado)
+        );
+    }
+
+    if (ui.botonDemo) {
+        ui.botonDemo.disabled =
+            !puedeEjecutarDemo() ||
+            enviandoDemo;
+    }
+
+    const joystickAutorizado =
+        puedeEnviarComando(1);
+
+    [
+        ui.joystickTraccion,
+        ui.joystickHerramienta
+    ].forEach(joystick => {
+        if (!joystick) return;
+
+        joystick.setAttribute(
+            "aria-disabled",
+            String(!joystickAutorizado)
+        );
+
+        joystick.style.opacity =
+            joystickAutorizado ? "1" : "0.35";
+    });
+
+    const tabMonitoreo =
+        document.getElementById("tab-monitoreo");
+
+    if (tabMonitoreo) {
+        const autorizado = puedeMonitorear();
+
+        tabMonitoreo.hidden = !autorizado;
+        tabMonitoreo.style.display =
+            autorizado ? "" : "none";
+    }
+}
+
+
+// =====================================================
+// RESPUESTAS DE FASTAPI
+// =====================================================
+
 function obtenerMensajeError(datos, codigo) {
     if (typeof datos?.detail === "string") {
         return datos.detail;
@@ -116,7 +383,11 @@ function obtenerMensajeError(datos, codigo) {
     }
 
     if (codigo === 403) {
-        return "No tienes permiso para esta operación.";
+        return "No tienes permiso para esta función.";
+    }
+
+    if (codigo === 409) {
+        return "El vehículo está ocupado.";
     }
 
     return "Error HTTP " + codigo;
@@ -143,86 +414,49 @@ async function leerRespuesta(respuesta) {
     return datos;
 }
 
-function obtenerHeaders() {
-    const headers = {
-        "Content-Type": "application/json"
-    };
-
-    if (
-        window.IOT43 &&
-        typeof window.IOT43.headers === "function"
-    ) {
-        Object.assign(
-            headers,
-            window.IOT43.headers()
-        );
-    }
-
-    return headers;
-}
-
-function puedeControlar() {
-    return (
-        window.IOT43 &&
-        typeof window.IOT43.canControl === "function" &&
-        window.IOT43.canControl()
-    );
-}
-
-function puedeEjecutarDemo() {
-    return (
-        window.IOT43 &&
-        typeof window.IOT43.canDemo === "function" &&
-        window.IOT43.canDemo()
-    );
-}
-
-function mostrarRechazo() {
-    showLiveAction(
-        "⚠️ ACCESO DENEGADO: REVISA TU SESIÓN"
-    );
-
-    if (
-        window.IOT43 &&
-        typeof window.IOT43.reject === "function"
-    ) {
-        window.IOT43.reject();
-    }
-}
 
 // =====================================================
-// ENVÍO DE COMANDOS A FASTAPI
+// ENVÍO DE COMANDOS
 // =====================================================
 
-async function sendCommand(idComando, isDemo = false) {
-    if (isDemo) {
-        return false;
-    }
+async function sendCommand(
+    idComando,
+    isDemo = false
+) {
+    if (isDemo) return false;
 
     const comando = Number(idComando);
 
-    const comandosPermitidos = [
-        1, 2, 3, 4,
-        5, 6, 7, 8,
-        9, 10, 11, 12,
-        14
-    ];
-
-    if (!comandosPermitidos.includes(comando)) {
+    if (!COMANDOS_VALIDOS.has(comando)) {
         showLiveAction(
             "⚠️ COMANDO NO DEFINIDO: " + idComando
         );
 
-        console.error(
-            "Comando no permitido:",
-            idComando
-        );
-
         return false;
     }
 
-    if (!puedeControlar()) {
-        mostrarRechazo();
+    /*
+     * VALIDACIÓN INDIVIDUAL
+     *
+     * Foco      = 5
+     * Sonido    = 6
+     * Velocidad = 7
+     * Power     = 8
+     *
+     * Joysticks = 1-4, 9-12
+     *
+     * Apagar todo = 14
+     */
+
+    if (!puedeEnviarComando(comando)) {
+        mostrarRechazo(comando);
+        return false;
+    }
+
+    const idVehiculo = obtenerVehiculoActivo();
+
+    if (!idVehiculo) {
+        mostrarRechazo(comando);
         return false;
     }
 
@@ -232,11 +466,9 @@ async function sendCommand(idComando, isDemo = false) {
     try {
         const respuesta = await fetch(url, {
             method: "POST",
-
             headers: obtenerHeaders(),
-
             body: JSON.stringify({
-                id_vehiculo: CONFIG.VEHICULO_ID,
+                id_vehiculo: idVehiculo,
                 id_comando: comando,
                 origen: "WEB"
             })
@@ -245,8 +477,9 @@ async function sendCommand(idComando, isDemo = false) {
         await leerRespuesta(respuesta);
 
         console.log(
-            "[CONTROL] Comando enviado:",
-            comando
+            "[CONTROL]",
+            "Vehículo:", idVehiculo,
+            "Comando:", comando
         );
 
         return true;
@@ -265,13 +498,24 @@ async function sendCommand(idComando, isDemo = false) {
     }
 }
 
+
 // =====================================================
 // APAGAR TODO
 // =====================================================
 
-async function apagarTodoSistema(origen = "BOTON") {
-    if (!puedeControlar()) {
-        mostrarRechazo();
+async function apagarTodoSistema(
+    origen = "BOTON"
+) {
+    /*
+     * APAGAR TODO debe estar permitido para
+     * el propietario autorizado del vehículo.
+     *
+     * No depende de tener habilitados
+     * Foco, Sonido o Velocidad.
+     */
+
+    if (!puedeEnviarComando(14)) {
+        mostrarRechazo(14);
         return false;
     }
 
@@ -280,7 +524,8 @@ async function apagarTodoSistema(origen = "BOTON") {
     );
 
     if (correcto) {
-        fueEmergencia = origen === "BOTON";
+        fueEmergencia =
+            origen === "BOTON";
 
         traccionActiva = false;
         herramientaActiva = false;
@@ -290,82 +535,296 @@ async function apagarTodoSistema(origen = "BOTON") {
         });
 
         showLiveAction(
-            "🛑 TODAS LAS SALIDAS DESACTIVADAS"
+            "🛑 ORDEN APAGAR TODO ENVIADA"
         );
     }
 
     return correcto;
 }
 
+
+// =====================================================
+// LIMPIAR DATOS AL CAMBIAR VEHÍCULO
+// =====================================================
+
+function limpiarDatosVehiculo() {
+    traccionActiva = false;
+    herramientaActiva = false;
+    enDemo = false;
+    fueEmergencia = false;
+
+    ui.toggles.forEach(boton => {
+        boton.classList.remove("active");
+    });
+
+    if (ui.ultimoComando) {
+        ui.ultimoComando.textContent =
+            "SIN DATOS";
+    }
+
+    if (ui.ultimaFecha) {
+        ui.ultimaFecha.textContent =
+            "--/--/----";
+    }
+
+    if (ui.ultimaHora) {
+        ui.ultimaHora.textContent =
+            "--:--:--";
+    }
+
+    if (ui.tablaHistorial) {
+        ui.tablaHistorial.replaceChildren();
+
+        const fila = document.createElement("tr");
+        const celda = document.createElement("td");
+
+        celda.colSpan = 4;
+        celda.textContent =
+            "Sin datos del vehículo seleccionado.";
+
+        fila.append(celda);
+        ui.tablaHistorial.append(fila);
+    }
+
+    if (ui.selectDemo) {
+        ui.selectDemo.replaceChildren();
+
+        const opcion = document.createElement("option");
+        opcion.value = "";
+        opcion.textContent =
+            "✨ Selecciona una DEMO ✨";
+
+        ui.selectDemo.append(opcion);
+    }
+}
+
+
 // =====================================================
 // WEBSOCKET
 // =====================================================
 
+function cerrarWebSocket() {
+    if (reconexionWS !== null) {
+        clearTimeout(reconexionWS);
+        reconexionWS = null;
+    }
+
+    const anterior = ws;
+
+    ws = null;
+    wsVehiculoId = null;
+
+    if (!anterior) return;
+
+    anterior.onopen = null;
+    anterior.onmessage = null;
+    anterior.onerror = null;
+    anterior.onclose = null;
+
+    if (
+        anterior.readyState === WebSocket.OPEN ||
+        anterior.readyState === WebSocket.CONNECTING
+    ) {
+        anterior.close();
+    }
+}
+
+
 function initWebSocket() {
+    const idVehiculo = obtenerVehiculoActivo();
+
+    if (!idVehiculo) return;
+
     if (
         ws &&
+        wsVehiculoId === idVehiculo &&
         (
-            ws.readyState === WebSocket.CONNECTING ||
-            ws.readyState === WebSocket.OPEN
+            ws.readyState === WebSocket.OPEN ||
+            ws.readyState === WebSocket.CONNECTING
         )
     ) {
         return;
     }
 
-    showLiveAction(
-        "CONECTANDO WEBSOCKET..."
-    );
+    cerrarWebSocket();
 
-    try {
-        ws = new WebSocket(
-            CONFIG.ENDPOINTS.WS
+    const generacion = generacionVehiculo;
+
+    const direccion =
+        `wss://${CONFIG.API_URL_BASE}` +
+        `/ws/vehiculo/${idVehiculo}`;
+
+    /*
+     * Tomamos las credenciales del sistema
+     * de sesiones existente en admin43.js.
+     *
+     * No colocamos tokens en la URL.
+     */
+    const headers = obtenerHeaders();
+
+    const authorization =
+        headers.Authorization ||
+        headers.authorization ||
+        "";
+
+    const guestToken =
+        headers["X-Guest-Token"] ||
+        headers["x-guest-token"] ||
+        "";
+
+    let mensajeAuth = null;
+
+    if (
+        typeof authorization === "string" &&
+        authorization.startsWith("Bearer ")
+    ) {
+        const token = authorization.slice(7).trim();
+
+        if (token) {
+            mensajeAuth = {
+                tipo: "AUTH",
+                token: token
+            };
+        }
+
+    } else if (
+        typeof guestToken === "string" &&
+        guestToken.trim()
+    ) {
+        mensajeAuth = {
+            tipo: "AUTH",
+            guest_token: guestToken.trim()
+        };
+    }
+
+    if (!mensajeAuth) {
+        marcarIndicador(
+            ui.wss,
+            "warning",
+            "link-slash"
         );
 
-        ws.onopen = () => {
-            marcarIndicador(
-                ui.wss,
-                "success",
-                "bolt"
-            );
+        console.warn(
+            "[WSS] No hay una sesión o reserva válida."
+        );
 
-            showLiveAction(
-                "✨ WEBSOCKET CONECTADO ✨"
-            );
+        return;
+    }
 
-            console.log(
-                "[WSS] Conectado al servidor"
-            );
+    try {
+        const conexion = new WebSocket(direccion);
 
-            actualizarMonitoreo();
+        ws = conexion;
+        wsVehiculoId = idVehiculo;
+
+        let autenticado = false;
+
+        marcarIndicador(
+            ui.wss,
+            "warning",
+            "link"
+        );
+
+        conexion.onopen = () => {
+            if (
+                ws !== conexion ||
+                generacion !== generacionVehiculo
+            ) {
+                return;
+            }
+
+            /*
+             * El servidor acepta inicialmente
+             * la conexión para recibir AUTH.
+             *
+             * Todavía no consideramos que
+             * esté autenticada.
+             */
+            try {
+                conexion.send(
+                    JSON.stringify(mensajeAuth)
+                );
+
+                console.log(
+                    "[WSS] Autenticación enviada."
+                );
+
+            } catch (error) {
+                console.error(
+                    "[WSS] Error enviando autenticación:",
+                    error
+                );
+
+                conexion.close();
+            }
         };
 
-        ws.onmessage = async mensaje => {
+        conexion.onmessage = mensaje => {
+            if (
+                ws !== conexion ||
+                generacion !== generacionVehiculo
+            ) {
+                return;
+            }
+
             let data;
 
             try {
-                data = JSON.parse(
-                    mensaje.data
-                );
+                data = JSON.parse(mensaje.data);
             } catch (error) {
-                console.warn(
-                    "[WSS] Mensaje no JSON:",
-                    mensaje.data
+                return;
+            }
+
+            if (
+                data.vehiculo !== undefined &&
+                data.vehiculo !== null &&
+                Number(data.vehiculo) !== idVehiculo
+            ) {
+                return;
+            }
+
+            const evento = String(
+                data.event || data.evento || ""
+            ).toUpperCase();
+
+            /*
+             * Solo mostramos WSS conectado
+             * cuando FastAPI confirma AUTH.
+             */
+            if (evento === "CONECTADO") {
+                autenticado = true;
+
+                marcarIndicador(
+                    ui.wss,
+                    "success",
+                    "bolt"
+                );
+
+                showLiveAction(
+                    "✨ WEBSOCKET AUTENTICADO ✨"
+                );
+
+                console.log(
+                    "[WSS] Conexión autenticada.",
+                    "Vehículo:",
+                    idVehiculo
                 );
 
                 return;
             }
 
-            console.log(
-                "[WSS] Mensaje recibido:",
-                data
-            );
+            /*
+             * No procesamos eventos de CONTROL
+             * antes de la confirmación del servidor.
+             */
+            if (!autenticado) return;
 
             procesarEventoWebSocket(data);
         };
 
-        ws.onerror = error => {
+        conexion.onerror = error => {
             console.error(
-                "[WSS] Error de conexión",
+                "[WSS] Error de conexión:",
                 error
             );
 
@@ -376,32 +835,61 @@ function initWebSocket() {
             );
         };
 
-        ws.onclose = () => {
+        conexion.onclose = evento => {
+            if (
+                ws !== conexion ||
+                generacion !== generacionVehiculo
+            ) {
+                return;
+            }
+
+            ws = null;
+            wsVehiculoId = null;
+
             marcarIndicador(
                 ui.wss,
                 "danger",
                 "link-slash"
             );
 
-            showLiveAction(
-                "WEBSOCKET DESCONECTADO. RECONECTANDO..."
+            console.warn(
+                "[WSS] Conexión cerrada.",
+                "Código:",
+                evento.code
             );
 
-            ws = null;
+            /*
+             * Código 1008:
+             * FastAPI rechazó la autenticación
+             * o el acceso al vehículo.
+             *
+             * No reintentamos automáticamente
+             * con esas mismas credenciales.
+             */
+            if (evento.code === 1008) {
+                showLiveAction(
+                    "⚠️ WEBSOCKET NO AUTORIZADO"
+                );
 
-            if (reconexionWS !== null) {
-                clearTimeout(reconexionWS);
+                return;
             }
 
             reconexionWS = setTimeout(() => {
                 reconexionWS = null;
-                initWebSocket();
+
+                if (
+                    obtenerVehiculoActivo() === idVehiculo &&
+                    obtenerVehiculoSesion() === idVehiculo
+                ) {
+                    initWebSocket();
+                }
+
             }, 5000);
         };
 
     } catch (error) {
         console.error(
-            "[WSS] No se pudo iniciar:",
+            "[WSS] No fue posible conectar:",
             error
         );
 
@@ -410,20 +898,13 @@ function initWebSocket() {
             "danger",
             "link-slash"
         );
-
-        if (reconexionWS !== null) {
-            clearTimeout(reconexionWS);
-        }
-
-        reconexionWS = setTimeout(() => {
-            reconexionWS = null;
-            initWebSocket();
-        }, 5000);
     }
 }
 
+
+
 // =====================================================
-// INTERPRETACIÓN DE EVENTOS WSS
+// EVENTOS WEBSOCKET
 // =====================================================
 
 function procesarEventoWebSocket(data) {
@@ -432,9 +913,6 @@ function procesarEventoWebSocket(data) {
     ).toUpperCase();
 
     if (evento === "CONECTADO") {
-        console.log(
-            "[WSS] Conexión confirmada"
-        );
         return;
     }
 
@@ -456,7 +934,6 @@ function procesarEventoWebSocket(data) {
         );
 
         actualizarMonitoreo();
-
         return;
     }
 
@@ -467,77 +944,46 @@ function procesarEventoWebSocket(data) {
     ) {
         const accion = String(
             data.accion ||
-            nombreComando(data.comando ?? data.id_comando)
+            nombreComando(
+                data.comando ?? data.id_comando
+            )
         ).toUpperCase();
 
-        if (accion) {
-            showLiveAction(accion);
+        if (!accion) return;
 
-            const esApagado =
-                Number(
-                    data.comando ?? data.id_comando
-                ) === 14 ||
-                accion === "APAGAR TODO" ||
-                accion === "DETENER SISTEMA";
+        showLiveAction(accion);
 
-            if (
-                !esApagado ||
-                fueEmergencia
-            ) {
-                actualizarTarjetaLocal(
-                    enDemo
-                        ? "DEMO: " + accion
-                        : accion
-                );
-            }
+        const esApagado =
+            Number(
+                data.comando ?? data.id_comando
+            ) === 14 ||
+            accion === "APAGAR TODO";
 
-            fueEmergencia = false;
+        if (!esApagado || fueEmergencia) {
+            actualizarTarjetaLocal(
+                enDemo
+                    ? "DEMO: " + accion
+                    : accion
+            );
         }
+
+        fueEmergencia = false;
 
         actualizarHistorialSeguro();
     }
 }
 
-// =====================================================
-// CATÁLOGO DE NOMBRES
-// =====================================================
-
-function nombreComando(numero) {
-    const nombres = {
-        1: "AVANZAR",
-        2: "RETROCEDER",
-        3: "GIRAR CABINA IZQUIERDA",
-        4: "GIRAR CABINA DERECHA",
-        5: "FOCO",
-        6: "SONIDO",
-        7: "VELOCIDAD",
-        8: "POWER",
-        9: "SUBIR GARRA",
-        10: "BAJAR GARRA",
-        11: "GIRAR CARRITO DERECHA",
-        12: "GIRAR CARRITO IZQUIERDA",
-        14: "APAGAR TODO"
-    };
-
-    return nombres[Number(numero)] || "";
-}
 
 // =====================================================
-// ACTUALIZACIÓN DE TARJETA LOCAL
+// TARJETA DE ÚLTIMO MOVIMIENTO
 // =====================================================
 
 function actualizarTarjetaLocal(accion) {
     if (ui.ultimoComando) {
-        ui.ultimoComando.textContent =
-            accion;
+        ui.ultimoComando.textContent = accion;
     }
 
     const ahora = new Date();
-
-    const hora = ahora.toLocaleTimeString(
-        "es-MX",
-        { hour12: false }
-    );
 
     const fecha = ahora.toLocaleDateString(
         "es-MX",
@@ -548,29 +994,36 @@ function actualizarTarjetaLocal(accion) {
         }
     );
 
+    const hora = ahora.toLocaleTimeString(
+        "es-MX",
+        {
+            hour12: false
+        }
+    );
+
     if (ui.ultimaFecha) {
-        ui.ultimaFecha.textContent =
-            fecha;
+        ui.ultimaFecha.textContent = fecha;
     }
 
     if (ui.ultimaHora) {
-        ui.ultimaHora.textContent =
-            hora;
+        ui.ultimaHora.textContent = hora;
     }
 }
+
 
 // =====================================================
 // MONITOREO
 // =====================================================
 
-async function actualizarMonitoreo() {
-    await Promise.allSettled([
-        actualizarUltimoEstadoSeguro(),
-        actualizarHistorialSeguro()
-    ]);
+function puedeUsarMonitoreoActual() {
+    return puedeMonitorear();
 }
 
 async function actualizarUltimoEstadoSeguro() {
+    if (!puedeUsarMonitoreoActual()) {
+        return;
+    }
+
     try {
         if (
             typeof cargarUltimoEstado === "function"
@@ -579,13 +1032,17 @@ async function actualizarUltimoEstadoSeguro() {
         }
     } catch (error) {
         console.error(
-            "[MONITOREO] Último estado:",
+            "[MONITOREO] Estado:",
             error
         );
     }
 }
 
 async function actualizarHistorialSeguro() {
+    if (!puedeUsarMonitoreoActual()) {
+        return;
+    }
+
     try {
         if (
             typeof cargarHistorial === "function"
@@ -600,21 +1057,157 @@ async function actualizarHistorialSeguro() {
     }
 }
 
+async function actualizarMonitoreo() {
+    if (!puedeMonitorear()) {
+        return;
+    }
+
+    await Promise.allSettled([
+        actualizarUltimoEstadoSeguro(),
+        actualizarHistorialSeguro()
+    ]);
+}
+
+
 // =====================================================
-// JOYSTICK 1: DESPLAZAMIENTO
+// DEMOSTRACIONES
+// =====================================================
+
+async function actualizarDemosSeguro() {
+    const idVehiculo = obtenerVehiculoActivo();
+
+    if (!idVehiculo || !ui.selectDemo) {
+        return;
+    }
+
+    const generacion = generacionVehiculo;
+
+    try {
+        const respuesta = await fetch(
+            `https://${CONFIG.API_URL_BASE}` +
+            `/api/vehiculos/${idVehiculo}/demos`,
+            {
+                method: "GET",
+                headers: obtenerHeaders()
+            }
+        );
+
+        const demos = await leerRespuesta(respuesta);
+
+        if (
+            generacion !== generacionVehiculo ||
+            !Array.isArray(demos)
+        ) {
+            return;
+        }
+
+        ui.selectDemo.replaceChildren();
+
+        const inicial = document.createElement("option");
+        inicial.value = "";
+        inicial.textContent =
+            "✨ Selecciona una DEMO ✨";
+
+        ui.selectDemo.append(inicial);
+
+        demos.forEach(demo => {
+            if (
+                demo.id_demo === undefined ||
+                demo.id_demo === null
+            ) {
+                return;
+            }
+
+            const opcion = document.createElement("option");
+
+            opcion.value = String(demo.id_demo);
+
+            opcion.textContent =
+                String(
+                    demo.nombre ||
+                    `Demo ${demo.id_demo}`
+                );
+
+            ui.selectDemo.append(opcion);
+        });
+
+    } catch (error) {
+        console.error(
+            "[DEMOS] No se pudieron cargar:",
+            error
+        );
+    }
+}
+
+
+// =====================================================
+// SINCRONIZAR VEHÍCULO Y PERMISOS
+// =====================================================
+
+async function sincronizarVehiculo() {
+    const nuevoId = obtenerVehiculoSesion();
+
+    /*
+     * Aunque el vehículo no haya cambiado,
+     * sus permisos pueden haberse actualizado.
+     */
+
+    if (nuevoId === vehiculoActivoId) {
+        actualizarControlesVisuales();
+        return;
+    }
+
+    generacionVehiculo += 1;
+
+    cerrarWebSocket();
+
+    vehiculoActivoId = nuevoId;
+
+    limpiarDatosVehiculo();
+
+    if (ui.vehiculoInfo) {
+        ui.vehiculoInfo.textContent = nuevoId
+            ? "🚗 Vehículo " + nuevoId
+            : "🚗 Sin vehículo seleccionado";
+    }
+
+    actualizarControlesVisuales();
+
+    if (!nuevoId) {
+        marcarIndicador(
+            ui.wss,
+            "warning",
+            "link-slash"
+        );
+
+        showLiveAction(
+            "⚠️ ESPERANDO VEHÍCULO AUTORIZADO"
+        );
+
+        return;
+    }
+
+    initWebSocket();
+
+    await actualizarDemosSeguro();
+    await actualizarMonitoreo();
+
+    actualizarControlesVisuales();
+}
+
+
+// =====================================================
+// JOYSTICK DE DESPLAZAMIENTO
 // =====================================================
 
 const joystickTraccion = new VirtualJoystick(
     "joystick-traccion",
     direction => {
-
         if (direction === null) {
             if (traccionActiva) {
                 traccionActiva = false;
 
-                apagarTodoSistema(
-                    "JOYSTICK"
-                );
+                apagarTodoSistema("JOYSTICK");
             }
 
             return;
@@ -640,29 +1233,31 @@ const joystickTraccion = new VirtualJoystick(
                 break;
         }
 
-        if (comando !== null) {
-            traccionActiva = true;
+        if (comando === null) return;
 
-            sendCommand(comando);
+        if (!puedeEnviarComando(comando)) {
+            mostrarRechazo(comando);
+            return;
         }
+
+        traccionActiva = true;
+        sendCommand(comando);
     }
 );
 
+
 // =====================================================
-// JOYSTICK 2: CABINA Y GARRA
+// JOYSTICK DE CABINA / GARRA
 // =====================================================
 
 const joystickHerramienta = new VirtualJoystick(
     "joystick-herramienta",
     direction => {
-
         if (direction === null) {
             if (herramientaActiva) {
                 herramientaActiva = false;
 
-                apagarTodoSistema(
-                    "JOYSTICK"
-                );
+                apagarTodoSistema("JOYSTICK");
             }
 
             return;
@@ -688,13 +1283,18 @@ const joystickHerramienta = new VirtualJoystick(
                 break;
         }
 
-        if (comando !== null) {
-            herramientaActiva = true;
+        if (comando === null) return;
 
-            sendCommand(comando);
+        if (!puedeEnviarComando(comando)) {
+            mostrarRechazo(comando);
+            return;
         }
+
+        herramientaActiva = true;
+        sendCommand(comando);
     }
 );
+
 
 // =====================================================
 // BOTONES FOCO / SONIDO / VELOCIDAD
@@ -704,52 +1304,55 @@ ui.toggles.forEach(boton => {
     boton.addEventListener(
         "click",
         async function () {
-
             const comando = Number(
                 this.dataset.comando
             );
+
+            if (!puedeEnviarComando(comando)) {
+                mostrarRechazo(comando);
+                return;
+            }
 
             const correcto = await sendCommand(
                 comando
             );
 
             if (correcto) {
-                this.classList.toggle(
-                    "active"
-                );
+                this.classList.toggle("active");
             }
         }
     );
 });
 
+
 // =====================================================
-// BOTÓN ROJO: APAGAR TODO
+// BOTÓN APAGAR TODO
 // =====================================================
 
 if (ui.botonApagar) {
     ui.botonApagar.addEventListener(
         "click",
         async () => {
-            await apagarTodoSistema(
-                "BOTON"
-            );
+            await apagarTodoSistema("BOTON");
         }
     );
 }
 
+
 // =====================================================
-// DEMOSTRACIONES AUTOMÁTICAS
+// EJECUTAR DEMOSTRACIONES
 // =====================================================
 
 if (ui.botonDemo) {
     ui.botonDemo.addEventListener(
         "click",
         async () => {
+            if (enviandoDemo) return;
 
-            const demoId =
-                ui.selectDemo?.value || "";
+            const idVehiculo = obtenerVehiculoActivo();
+            const idDemo = ui.selectDemo?.value || "";
 
-            if (!demoId) {
+            if (!idDemo) {
                 showLiveAction(
                     "SELECCIONA UNA DEMOSTRACIÓN"
                 );
@@ -762,32 +1365,24 @@ if (ui.botonDemo) {
                 return;
             }
 
-            const url =
-                `https://${CONFIG.API_URL_BASE}` +
-                `/api/vehiculos/${CONFIG.VEHICULO_ID}` +
-                `/demos/${encodeURIComponent(demoId)}/ejecutar`;
-
-            showLiveAction(
-                "INICIANDO DEMOSTRACIÓN..."
-            );
-
+            enviandoDemo = true;
             ui.botonDemo.disabled = true;
 
-            try {
-                const respuesta = await fetch(
-                    url,
-                    {
-                        method: "POST",
-                        headers: obtenerHeaders()
-                    }
-                );
+            const url =
+                `https://${CONFIG.API_URL_BASE}` +
+                `/api/vehiculos/${idVehiculo}` +
+                `/demos/${encodeURIComponent(idDemo)}/ejecutar`;
 
-                await leerRespuesta(
-                    respuesta
-                );
+            try {
+                const respuesta = await fetch(url, {
+                    method: "POST",
+                    headers: obtenerHeaders()
+                });
+
+                await leerRespuesta(respuesta);
 
                 showLiveAction(
-                    "🤖 DEMOSTRACIÓN SOLICITADA"
+                    "🤖 DEMOSTRACIÓN FINALIZADA"
                 );
 
             } catch (error) {
@@ -801,58 +1396,37 @@ if (ui.botonDemo) {
                 );
 
             } finally {
-                ui.botonDemo.disabled = false;
+                enviandoDemo = false;
+                actualizarControlesVisuales();
             }
         }
     );
 }
 
+
 // =====================================================
-// VERIFICAR CONEXIONES API Y RDS
+// ESTADO DE API Y RDS
 // =====================================================
+
 
 async function verificarServicios() {
+
+    // ==========================================
+    // 1. COMPROBAR FASTAPI
+    // ==========================================
+
     try {
-        const estadoOk =
-            await checkApiHealth();
-
-        if (estadoOk) {
-            marcarIndicador(
-                ui.api,
-                "success",
-                "check"
-            );
-
-            // Este indicador conserva la
-            // comprobación que hace api.js.
-            // La salud de API no necesariamente
-            // verifica RDS por separado.
-            marcarIndicador(
-                ui.rds,
-                "warning",
-                "database"
-            );
-
-            return true;
-        }
+        const apiOk = await checkApiHealth();
 
         marcarIndicador(
             ui.api,
-            "danger",
-            "xmark"
+            apiOk ? "success" : "danger",
+            apiOk ? "check" : "xmark"
         );
-
-        marcarIndicador(
-            ui.rds,
-            "warning",
-            "database"
-        );
-
-        return false;
 
     } catch (error) {
         console.error(
-            "[API] Error de conexión:",
+            "[API] Error verificando servidor:",
             error
         );
 
@@ -861,49 +1435,106 @@ async function verificarServicios() {
             "danger",
             "xmark"
         );
+    }
+
+    // ==========================================
+    // 2. COMPROBAR AMAZON RDS
+    // ==========================================
+
+    try {
+        const respuesta = await fetch(
+            `https://${CONFIG.API_URL_BASE}/api/health/rds`,
+            {
+                method: "GET",
+                cache: "no-store"
+            }
+        );
+
+        if (!respuesta.ok) {
+            throw new Error(
+                `HTTP ${respuesta.status}`
+            );
+        }
+
+        const datos = await respuesta.json();
+
+        const rdsConectado =
+            datos.status === "ok" &&
+            datos.rds === "connected";
 
         marcarIndicador(
             ui.rds,
-            "warning",
-            "database"
+            rdsConectado ? "success" : "danger",
+            rdsConectado ? "database" : "xmark"
         );
 
-        return false;
-    }
-}
+        console.log(
+            "[RDS]",
+            rdsConectado
+                ? "Amazon RDS conectado correctamente."
+                : "Amazon RDS no disponible."
+        );
 
-// =====================================================
-// CARGAR DEMOSTRACIONES
-// =====================================================
-
-async function actualizarDemosSeguro() {
-    try {
-        if (
-            typeof cargarDemosEnSelector === "function"
-        ) {
-            await cargarDemosEnSelector();
-        }
     } catch (error) {
         console.error(
-            "[DEMOS] No se pudieron cargar:",
+            "[RDS] Error de conexión:",
             error
         );
 
-        if (ui.selectDemo) {
-            ui.selectDemo.innerHTML =
-                '<option value="">Error al cargar demos</option>';
-        }
+        marcarIndicador(
+            ui.rds,
+            "danger",
+            "xmark"
+        );
     }
 }
 
+
+
 // =====================================================
-// INICIALIZACIÓN PRINCIPAL
+// COMUNICACIÓN CON ADMIN43.JS
+// =====================================================
+
+window.IOT_CONTROL = {
+    refreshVehicle: sincronizarVehiculo,
+    refreshPermissions: actualizarControlesVisuales,
+    refreshMonitoring: actualizarMonitoreo,
+    refreshDemos: actualizarDemosSeguro,
+
+    getVehicle: obtenerVehiculoActivo
+};
+
+window.addEventListener(
+    "iot:vehiculo-cambiado",
+    () => {
+        sincronizarVehiculo().catch(
+            error => console.error(
+                "[CONTROL] Cambio de vehículo:",
+                error
+            )
+        );
+    }
+);
+
+window.addEventListener(
+    "iot:sesion-cambiada",
+    () => {
+        sincronizarVehiculo().catch(
+            error => console.error(
+                "[CONTROL] Cambio de sesión:",
+                error
+            )
+        );
+    }
+);
+
+
+// =====================================================
+// INICIALIZACIÓN
 // =====================================================
 
 async function arrancarSistema() {
-    if (inicializado) {
-        return;
-    }
+    if (inicializado) return;
 
     inicializado = true;
 
@@ -915,27 +1546,9 @@ async function arrancarSistema() {
         "INICIANDO PLATAFORMA IoT..."
     );
 
-    // La conexión WSS se realiza
-    // independientemente del estado de API.
-    initWebSocket();
-
-    const apiCorrecta =
-        await verificarServicios();
-
-    if (apiCorrecta) {
-        await actualizarDemosSeguro();
-
-        await actualizarMonitoreo();
-    } else {
-        showLiveAction(
-            "⚠️ API NO DISPONIBLE"
-        );
-    }
+    await verificarServicios();
+    await sincronizarVehiculo();
 }
-
-// =====================================================
-// INICIO
-// =====================================================
 
 if (document.readyState === "loading") {
     document.addEventListener(

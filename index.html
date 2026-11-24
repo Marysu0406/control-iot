@@ -7,45 +7,194 @@
 
     <meta
         name="viewport"
-        content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+        content="width=device-width, initial-scale=1, viewport-fit=cover"
     >
 
-    <title>Control IoT - Vehículo</title>
+    <title>IoT CONTROL | Plataforma de Vehículos</title>
 
-    <!-- Favicon -->
     <link
         rel="icon"
         type="image/png"
         href="assets/favicon.png"
     >
 
-    <!-- Bootstrap -->
     <link
         href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
         rel="stylesheet"
     >
 
-    <!-- Font Awesome -->
     <link
         rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css"
     >
 
-    <!-- Estilos originales de la plataforma -->
-    <link
-        rel="stylesheet"
-        href="assets/css/styles.css"
-    >
-
+    <link rel="stylesheet" href="assets/css/styles.css">
 </head>
 
 <body class="girly-theme">
 
-    <div class="remote-container">
+    <!-- ==================================================
+         PANTALLA INICIAL DE ACCESO
+    ================================================== -->
 
-        <!-- ==========================================
-             BARRA SUPERIOR
-        ========================================== -->
+    <section
+        id="pantalla-acceso"
+        class="login-screen"
+        hidden
+        aria-labelledby="acceso-titulo"
+    >
+        <div class="login-card">
+
+            <div class="text-center mb-3">
+                <i class="fa-solid fa-gamepad fa-3x text-pink"></i>
+            </div>
+
+            <h1 id="acceso-titulo">
+                IoT CONTROL
+            </h1>
+
+            <p class="mb-4">
+                Plataforma de control y monitoreo
+                de vehículos inteligentes
+            </p>
+
+            <div
+                id="acceso-mensaje"
+                role="status"
+                aria-live="polite"
+                class="mb-3"
+            ></div>
+
+            <div id="acceso-panel-login">
+
+                <h2 class="fs-5 mb-3">
+                    Iniciar sesión
+                </h2>
+
+                <form id="acceso-login-form">
+
+                    <label for="acceso-correo">
+                        Correo electrónico
+                    </label>
+
+                    <input
+                        id="acceso-correo"
+                        type="email"
+                        autocomplete="username"
+                        placeholder="correo@ejemplo.com"
+                        required
+                    >
+
+                    <label for="acceso-password">
+                        Contraseña
+                    </label>
+
+                    <input
+                        id="acceso-password"
+                        type="password"
+                        autocomplete="current-password"
+                        placeholder="Contraseña"
+                        required
+                    >
+
+                    <button
+                        id="acceso-btn-login"
+                        type="submit"
+                        class="login-primary"
+                    >
+                        <i class="fa-solid fa-right-to-bracket me-2"></i>
+                        Iniciar sesión
+                    </button>
+
+                </form>
+
+                <div class="text-center my-3">
+                    O
+                </div>
+
+                <button
+                    id="acceso-btn-invitado"
+                    type="button"
+                    class="login-guest"
+                >
+                    <i class="fa-solid fa-user-group me-2"></i>
+                    Entrar como invitado
+                </button>
+
+                <p class="mt-3 mb-0">
+                    El sistema reconoce automáticamente
+                    el rol de Administrador o Usuario.
+                </p>
+
+            </div>
+
+            <div
+                id="acceso-panel-invitado"
+                hidden
+            >
+
+                <h2 class="fs-5">
+                    Acceso como invitado
+                </h2>
+
+                <p>
+                    Selecciona una unidad de exhibición.
+                    La reserva autorizada tiene una
+                    duración de 10 minutos.
+                </p>
+
+                <label for="acceso-invitado-vehiculo">
+                    Vehículo disponible
+                </label>
+
+                <select
+                    id="acceso-invitado-vehiculo"
+                    class="form-select mb-3"
+                >
+                    <option value="">
+                        Consultando vehículos...
+                    </option>
+                </select>
+
+                <button
+                    id="acceso-btn-reservar"
+                    type="button"
+                    class="login-primary"
+                >
+                    <i class="fa-solid fa-car-side me-2"></i>
+                    Reservar y entrar al control
+                </button>
+
+                <button
+                    id="acceso-btn-volver"
+                    type="button"
+                    class="login-guest mt-2"
+                >
+                    <i class="fa-solid fa-arrow-left me-2"></i>
+                    Volver
+                </button>
+
+                <p class="mt-3 mb-0">
+                    Los invitados no pueden administrar
+                    usuarios, vehículos o demostraciones.
+                </p>
+
+            </div>
+
+        </div>
+    </section>
+
+
+    <!-- ==================================================
+         APLICACIÓN PRINCIPAL
+    ================================================== -->
+
+    <div
+        id="aplicacion-iot"
+        class="remote-container"
+    >
+
+        <!-- BARRA SUPERIOR -->
 
         <nav class="top-nav">
 
@@ -65,15 +214,12 @@
         </nav>
 
 
-        <!-- ==========================================
-             INDICADORES DE CONEXIÓN
-        ========================================== -->
+        <!-- ESTADO DE CONEXIONES -->
 
         <div class="status-panel">
 
             <div class="d-flex justify-content-between text-center w-100">
 
-                <!-- WSS -->
                 <div class="status-item">
 
                     <div class="status-label">
@@ -89,8 +235,6 @@
 
                 </div>
 
-
-                <!-- API -->
                 <div class="status-item border-start border-end border-pink px-2">
 
                     <div class="status-label">
@@ -106,8 +250,6 @@
 
                 </div>
 
-
-                <!-- RDS -->
                 <div class="status-item">
 
                     <div class="status-label">
@@ -128,9 +270,41 @@
         </div>
 
 
-        <!-- ==========================================
-             NAVEGACIÓN PRINCIPAL
-        ========================================== -->
+        <!-- SESIÓN ACTUAL -->
+
+        <div
+            id="barra-sesion"
+            class="d-flex align-items-center justify-content-between gap-2 mb-2"
+            hidden
+        >
+
+            <span
+                id="sesion-etiqueta"
+                class="small"
+            >
+                Sin sesión
+            </span>
+
+            <span
+                id="sesion-tiempo"
+                class="small"
+                hidden
+            ></span>
+
+            <button
+                id="btn-salir-plataforma"
+                type="button"
+                class="tab-btn"
+                style="flex:0 0 auto"
+            >
+                <i class="fa-solid fa-right-from-bracket"></i>
+                Salir
+            </button>
+
+        </div>
+
+
+        <!-- NAVEGACIÓN -->
 
         <div class="tabs-container mb-3">
 
@@ -164,17 +338,14 @@
         </div>
 
 
-
-        <!-- ==========================================
-             VISTA 1: CONTROL 4.1
-        ========================================== -->
+        <!-- ==================================================
+             CONTROL 4.1
+        ================================================== -->
 
         <div
             id="view-control"
             class="view-section"
         >
-
-            <!-- Estado de acción -->
 
             <div class="live-action-bar mb-2">
 
@@ -186,11 +357,6 @@
                 </span>
 
             </div>
-
-
-            <!-- ======================================
-                 BOTÓN DE SEGURIDAD
-            ====================================== -->
 
             <div class="emergency-container mb-3">
 
@@ -206,18 +372,11 @@
 
             </div>
 
-
-            <!-- ======================================
-                 CONTROLES PRINCIPALES
-            ====================================== -->
-
             <div class="responsive-controls">
 
-                <!-- Botones de funciones especiales -->
+                <!-- BOTONES DE FUNCIONES -->
 
                 <div class="toggles-container">
-
-                    <!-- Comando 5: FOCO -->
 
                     <button
                         id="btn-foco"
@@ -229,9 +388,6 @@
                         <span>Foco</span>
                     </button>
 
-
-                    <!-- Comando 6: SONIDO -->
-
                     <button
                         id="btn-sonido"
                         class="btn-toggle-girly"
@@ -241,9 +397,6 @@
                         <i class="fa-solid fa-music"></i>
                         <span>Sonido</span>
                     </button>
-
-
-                    <!-- Comando 7: VELOCIDAD -->
 
                     <button
                         id="btn-velocidad"
@@ -258,10 +411,7 @@
                 </div>
 
 
-                <!-- ==================================
-                     JOYSTICK IZQUIERDO
-                     DESPLAZAMIENTO
-                ================================== -->
+                <!-- JOYSTICK IZQUIERDO -->
 
                 <div class="joystick-wrapper j-izq">
 
@@ -279,10 +429,7 @@
                 </div>
 
 
-                <!-- ==================================
-                     JOYSTICK DERECHO
-                     CABINA / GARRA
-                ================================== -->
+                <!-- JOYSTICK DERECHO -->
 
                 <div class="joystick-wrapper j-der">
 
@@ -302,15 +449,13 @@
             </div>
 
 
-            <!-- ======================================
-                 DEMOSTRACIONES AUTOMÁTICAS
-            ====================================== -->
+            <!-- DEMOSTRACIONES -->
 
             <div class="demo-section mt-auto">
 
                 <div
                     class="control-title text-start mb-1"
-                    style="font-size: 0.7rem;"
+                    style="font-size:0.7rem"
                 >
                     SECUENCIAS AUTOMÁTICAS
                 </div>
@@ -343,27 +488,21 @@
         </div>
 
 
-
-        <!-- ==========================================
-             VISTA 2: MONITOREO 4.2
-        ========================================== -->
+        <!-- ==================================================
+             MONITOREO 4.2
+        ================================================== -->
 
         <div
             id="view-monitoreo"
             class="view-section"
-            style="display: none;"
+            style="display:none"
         >
-
-            <!-- ======================================
-                 ÚLTIMO ESTADO REPORTADO
-            ====================================== -->
 
             <div class="ultimo-movimiento-card mb-3">
 
                 <div class="control-title text-start mb-2">
 
                     <i class="fa-solid fa-satellite-dish me-1"></i>
-
                     ÚLTIMO ESTADO REPORTADO
 
                 </div>
@@ -385,9 +524,7 @@
                             --/--/----
                         </span>
 
-                        <span class="mx-2">
-                            |
-                        </span>
+                        <span class="mx-2">|</span>
 
                         <i class="fa-regular fa-clock me-1"></i>
 
@@ -402,18 +539,11 @@
             </div>
 
 
-            <!-- ======================================
-                 HISTORIAL DE MOVIMIENTOS
-            ====================================== -->
-
             <div class="historial-container">
 
                 <div class="control-title text-start mb-2">
-
                     <i class="fa-solid fa-list-ul me-1"></i>
-
                     ÚLTIMOS 10 MOVIMIENTOS
-
                 </div>
 
                 <div class="table-responsive table-wrapper-girly">
@@ -421,27 +551,23 @@
                     <table class="table table-dark table-girly mb-0">
 
                         <thead>
-
                             <tr>
                                 <th>#</th>
                                 <th>Movimiento</th>
                                 <th>Fecha</th>
                                 <th>Hora</th>
                             </tr>
-
                         </thead>
 
                         <tbody id="tabla-historial">
 
                             <tr>
-
                                 <td
                                     colspan="4"
                                     class="text-center"
                                 >
                                     Cargando registros...
                                 </td>
-
                             </tr>
 
                         </tbody>
@@ -455,20 +581,17 @@
         </div>
 
 
-
-        <!-- ==========================================
-             VISTA 3: ADMINISTRACIÓN 4.3
-        ========================================== -->
+        <!-- ==================================================
+             ADMINISTRACIÓN 4.3
+        ================================================== -->
 
         <section
             id="view-administracion"
             class="view-section admin43"
-            style="display: none;"
+            style="display:none"
         >
 
-            <!-- ======================================
-                 IDENTIDAD Y AUTENTICACIÓN
-            ====================================== -->
+            <!-- IDENTIDAD -->
 
             <div class="admin43-card">
 
@@ -487,11 +610,8 @@
                 ></div>
 
                 <p id="admin-aviso-control">
-                    El control requiere iniciar sesión.
+                    El control requiere una cuenta autorizada.
                 </p>
-
-
-                <!-- Inicio de sesión -->
 
                 <form id="adm-login-form">
 
@@ -527,9 +647,6 @@
 
                 </form>
 
-
-                <!-- Cierre de sesión -->
-
                 <button
                     id="admin-logout"
                     type="button"
@@ -538,29 +655,21 @@
                     Cerrar sesión
                 </button>
 
-
-                <!-- Vehículos asignados -->
-
                 <div
                     id="admin-flota"
                     hidden
                 >
-
                     <h3>
                         Mis vehículos
                     </h3>
 
                     <p id="admin-mi-flota"></p>
-
                 </div>
 
             </div>
 
 
-
-            <!-- ======================================
-                 CATÁLOGO PÚBLICO
-            ====================================== -->
+            <!-- CATÁLOGO PÚBLICO -->
 
             <div
                 id="admin-publico"
@@ -572,9 +681,8 @@
                 </h3>
 
                 <p>
-                    Explora las unidades destinadas a exhibición.
-                    Para controlar un vehículo comprado,
-                    inicia sesión con tu cuenta de cliente.
+                    Explora las unidades disponibles
+                    para exhibición.
                 </p>
 
                 <button
@@ -593,10 +701,7 @@
             </div>
 
 
-
-            <!-- ======================================
-                 PANEL DEL CLIENTE
-            ====================================== -->
+            <!-- PANEL DEL CLIENTE -->
 
             <div
                 id="admin-cliente"
@@ -609,9 +714,9 @@
                 </h3>
 
                 <p>
-                    Consulta tus vehículos y accede
-                    a CONTROL y MONITOREO para
-                    tus unidades autorizadas.
+                    Consulta tus unidades asignadas
+                    y utiliza CONTROL y MONITOREO
+                    cuando tengas autorización.
                 </p>
 
                 <div
@@ -620,18 +725,14 @@
                 ></div>
 
                 <p id="adm-cliente-aviso">
-                    Las demostraciones propias estarán
-                    disponibles cuando se habilite su
-                    editor con permisos por vehículo.
+                    Las demostraciones privadas
+                    requieren autorización específica.
                 </p>
 
             </div>
 
 
-
-            <!-- ======================================
-                 PANEL DEL INVITADO
-            ====================================== -->
+            <!-- PANEL DEL INVITADO -->
 
             <div
                 id="admin-invitado"
@@ -643,10 +744,8 @@
                 </h3>
 
                 <p>
-                    Acceso temporal exclusivo durante
-                    10 minutos, sujeto a disponibilidad
-                    y validación del servidor.
-                    Solo demostraciones de fábrica.
+                    Reserva exclusiva de hasta 10 minutos.
+                    Se necesita autorización del servidor.
                 </p>
 
                 <button
@@ -660,18 +759,16 @@
                     id="adm-select-invitado"
                     aria-label="Seleccionar vehículo de exhibición"
                 >
-
                     <option value="">
                         Seleccionar vehículo
                     </option>
-
                 </select>
 
                 <button
                     id="adm-reservar"
                     type="button"
                 >
-                    Reservar demostración
+                    Reservar vehículo
                 </button>
 
                 <button
@@ -684,20 +781,16 @@
             </div>
 
 
-
-            <!-- ======================================
+            <!-- ==================================================
                  PANEL DEL ADMINISTRADOR
-            ====================================== -->
+            ================================================== -->
 
             <div
                 id="admin-panel"
                 hidden
             >
 
-
-                <!-- ==================================
-                     PANEL GENERAL
-                ================================== -->
+                <!-- PANEL GENERAL -->
 
                 <div class="admin43-card">
 
@@ -706,8 +799,8 @@
                     </h3>
 
                     <p>
-                        Resumen comercial basado en los
-                        registros reales de Amazon RDS.
+                        Resumen del inventario comercial
+                        registrado en Amazon RDS.
                     </p>
 
                     <div
@@ -723,26 +816,296 @@
                     <p class="admin43-help">
                         Selecciona un apartado para
                         administrar los datos.
-                        Los formularios avanzados permanecen
-                        ocultos hasta que los necesites.
                     </p>
 
                 </div>
 
 
+                <!-- ==================================================
+                     NUEVO MÓDULO: PERMISOS DE USUARIOS
+                ================================================== -->
 
-                <!-- ==================================
+                <details
+                    id="adm-seccion-permisos"
+                    class="admin43-card admin43-desplegable"
+                >
+
+                    <summary>
+                        <i class="fa-solid fa-shield-halved me-2"></i>
+                        Permisos de usuarios
+                    </summary>
+
+                    <div class="mt-3">
+
+                        <p class="admin43-help">
+                            Selecciona un comprador y uno de sus vehículos.
+                            Podrás activar o desactivar sus funciones
+                            individualmente.
+                        </p>
+
+                        <!-- SELECCIÓN DE USUARIO Y VEHÍCULO -->
+
+                        <div class="row g-2 mb-3">
+
+                            <div class="col-md-6">
+
+                                <label
+                                    for="adm-perm-usuario"
+                                    class="form-label"
+                                >
+                                    Comprador
+                                </label>
+
+                                <select
+                                    id="adm-perm-usuario"
+                                    class="form-select"
+                                >
+                                    <option value="">
+                                        Seleccionar usuario
+                                    </option>
+                                </select>
+
+                            </div>
+
+                            <div class="col-md-6">
+
+                                <label
+                                    for="adm-perm-vehiculo"
+                                    class="form-label"
+                                >
+                                    Vehículo asignado
+                                </label>
+
+                                <select
+                                    id="adm-perm-vehiculo"
+                                    class="form-select"
+                                >
+                                    <option value="">
+                                        Seleccionar vehículo
+                                    </option>
+                                </select>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- CONSULTAR PERMISOS -->
+
+                        <button
+                            id="adm-cargar-permisos"
+                            type="button"
+                            class="mb-3"
+                        >
+                            <i class="fa-solid fa-magnifying-glass me-1"></i>
+                            Consultar permisos
+                        </button>
+
+                        <div
+                            id="adm-permisos-mensaje"
+                            role="status"
+                            aria-live="polite"
+                            class="mb-2"
+                        ></div>
+
+
+                        <!-- FORMULARIO DE PERMISOS -->
+
+                        <form
+                            id="adm-form-permisos"
+                            hidden
+                        >
+
+                            <div class="row g-3">
+
+                                <div class="col-md-6">
+
+                                    <label class="d-flex align-items-center gap-2">
+
+                                        <input
+                                            type="checkbox"
+                                            id="adm-perm-joystick"
+                                        >
+
+                                        <span>
+                                            <i class="fa-solid fa-gamepad me-1"></i>
+                                            Manejar joysticks
+                                        </span>
+
+                                    </label>
+
+                                </div>
+
+
+                                <div class="col-md-6">
+
+                                    <label class="d-flex align-items-center gap-2">
+
+                                        <input
+                                            type="checkbox"
+                                            id="adm-perm-monitoreo"
+                                        >
+
+                                        <span>
+                                            <i class="fa-solid fa-chart-line me-1"></i>
+                                            Consultar monitoreo
+                                        </span>
+
+                                    </label>
+
+                                </div>
+
+
+                                <div class="col-md-6">
+
+                                    <label class="d-flex align-items-center gap-2">
+
+                                        <input
+                                            type="checkbox"
+                                            id="adm-perm-foco"
+                                        >
+
+                                        <span>
+                                            <i class="fa-solid fa-lightbulb me-1"></i>
+                                            Utilizar foco
+                                        </span>
+
+                                    </label>
+
+                                </div>
+
+
+                                <div class="col-md-6">
+
+                                    <label class="d-flex align-items-center gap-2">
+
+                                        <input
+                                            type="checkbox"
+                                            id="adm-perm-sonido"
+                                        >
+
+                                        <span>
+                                            <i class="fa-solid fa-music me-1"></i>
+                                            Utilizar sonido
+                                        </span>
+
+                                    </label>
+
+                                </div>
+
+
+                                <div class="col-md-6">
+
+                                    <label class="d-flex align-items-center gap-2">
+
+                                        <input
+                                            type="checkbox"
+                                            id="adm-perm-velocidad"
+                                        >
+
+                                        <span>
+                                            <i class="fa-solid fa-gauge-high me-1"></i>
+                                            Cambiar velocidad
+                                        </span>
+
+                                    </label>
+
+                                </div>
+
+
+                                <div class="col-md-6">
+
+                                    <label class="d-flex align-items-center gap-2">
+
+                                        <input
+                                            type="checkbox"
+                                            id="adm-perm-power"
+                                        >
+
+                                        <span>
+                                            <i class="fa-solid fa-power-off me-1"></i>
+                                            Utilizar power
+                                        </span>
+
+                                    </label>
+
+                                </div>
+
+
+                                <div class="col-md-6">
+
+                                    <label class="d-flex align-items-center gap-2">
+
+                                        <input
+                                            type="checkbox"
+                                            id="adm-perm-ejecutar-demos"
+                                        >
+
+                                        <span>
+                                            <i class="fa-solid fa-play me-1"></i>
+                                            Ejecutar demostraciones
+                                        </span>
+
+                                    </label>
+
+                                </div>
+
+
+                                <div class="col-md-6">
+
+                                    <label class="d-flex align-items-center gap-2">
+
+                                        <input
+                                            type="checkbox"
+                                            id="adm-perm-editar-demos"
+                                        >
+
+                                        <span>
+                                            <i class="fa-solid fa-pen-to-square me-1"></i>
+                                            Crear y editar demostraciones
+                                        </span>
+
+                                    </label>
+
+                                </div>
+
+                            </div>
+
+
+                            <hr class="my-3">
+
+
+                            <!-- GUARDAR -->
+
+                            <button
+                                id="adm-guardar-permisos"
+                                type="submit"
+                            >
+                                <i class="fa-solid fa-floppy-disk me-1"></i>
+                                Guardar permisos
+                            </button>
+
+                            <p class="admin43-help mt-3 mb-0">
+                                Los cambios deberán ser validados
+                                por FastAPI y guardados en Amazon RDS.
+                            </p>
+
+                        </form>
+
+                    </div>
+
+                </details>
+
+
+                <!-- ==================================================
                      COMPRADORES Y CUENTAS
-                ================================== -->
+                ================================================== -->
 
                 <details class="admin43-card admin43-desplegable">
 
                     <summary>
                         Compradores y cuentas
                     </summary>
-
-
-                    <!-- Registrar comprador -->
 
                     <form id="adm-crear-usuario">
 
@@ -774,8 +1137,6 @@
                     </form>
 
 
-                    <!-- Editar comprador -->
-
                     <form id="adm-editar-usuario">
 
                         <select
@@ -793,15 +1154,12 @@
                         >
 
                         <label>
-
                             <input
                                 id="adm-edit-activo"
                                 type="checkbox"
                                 checked
                             >
-
                             Cuenta activa
-
                         </label>
 
                         <button type="submit">
@@ -809,9 +1167,6 @@
                         </button>
 
                     </form>
-
-
-                    <!-- Tabla de compradores -->
 
                     <div class="table-responsive">
 
@@ -825,19 +1180,15 @@
                 </details>
 
 
-
-                <!-- ==================================
+                <!-- ==================================================
                      MODELOS COMERCIALES
-                ================================== -->
+                ================================================== -->
 
                 <details class="admin43-card admin43-desplegable">
 
                     <summary>
                         Modelos comerciales
                     </summary>
-
-
-                    <!-- Crear modelo -->
 
                     <form id="adm-crear-modelo">
 
@@ -854,7 +1205,7 @@
 
                         <textarea
                             id="adm-capacidades"
-                            placeholder='Capacidades JSON, por ejemplo: {"brazo":true}'
+                            placeholder='Capacidades JSON, ejemplo: {"brazo":true}'
                         ></textarea>
 
                         <button type="submit">
@@ -863,8 +1214,6 @@
 
                     </form>
 
-
-                    <!-- Editar modelo -->
 
                     <form id="adm-editar-modelo">
 
@@ -888,15 +1237,12 @@
                         >
 
                         <label>
-
                             <input
                                 id="adm-edit-modelo-activo"
                                 type="checkbox"
                                 checked
                             >
-
                             Modelo activo
-
                         </label>
 
                         <button type="submit">
@@ -904,9 +1250,6 @@
                         </button>
 
                     </form>
-
-
-                    <!-- Tabla de modelos -->
 
                     <div class="table-responsive">
 
@@ -920,19 +1263,15 @@
                 </details>
 
 
-
-                <!-- ==================================
+                <!-- ==================================================
                      UNIDADES Y ASIGNACIONES
-                ================================== -->
+                ================================================== -->
 
                 <details class="admin43-card admin43-desplegable">
 
                     <summary>
                         Unidades y asignaciones
                     </summary>
-
-
-                    <!-- Dar de alta unidad -->
 
                     <form id="adm-nueva-unidad">
 
@@ -959,8 +1298,6 @@
                     </form>
 
 
-                    <!-- Asignación comercial -->
-
                     <form id="adm-guardar-unidad">
 
                         <select
@@ -978,7 +1315,7 @@
                             aria-label="Seleccionar modelo"
                         >
                             <option value="">
-                                Sin modelo asignado
+                                Sin modelo
                             </option>
                         </select>
 
@@ -995,6 +1332,7 @@
                             id="adm-estado-comercial"
                             aria-label="Estado comercial"
                         >
+
                             <option value="DISPONIBLE">
                                 DISPONIBLE
                             </option>
@@ -1010,6 +1348,7 @@
                             <option value="MANTENIMIENTO">
                                 MANTENIMIENTO
                             </option>
+
                         </select>
 
                         <input
@@ -1023,9 +1362,6 @@
 
                     </form>
 
-
-                    <!-- Tabla de unidades -->
-
                     <div class="table-responsive">
 
                         <table
@@ -1038,10 +1374,9 @@
                 </details>
 
 
-
-                <!-- ==================================
+                <!-- ==================================================
                      DEMOSTRACIONES DE EMPRESA
-                ================================== -->
+                ================================================== -->
 
                 <details class="admin43-card admin43-desplegable">
 
@@ -1050,13 +1385,12 @@
                     </summary>
 
                     <p>
-                        Crear secuencias y ajustar sus movimientos.
-                        Los invitados solo pueden ejecutar
-                        demostraciones clasificadas como FABRICA.
+                        Crear, consultar y clasificar
+                        demostraciones de vehículos.
+                        Los invitados solo ejecutan
+                        demostraciones de fábrica.
                     </p>
 
-
-                    <!-- Crear demostración -->
 
                     <form id="adm-crear-demo">
 
@@ -1088,8 +1422,6 @@
                     </form>
 
 
-                    <!-- Agregar movimiento -->
-
                     <form id="adm-mov-demo">
 
                         <select
@@ -1102,71 +1434,25 @@
                             </option>
                         </select>
 
-
-                        <!-- CATÁLOGO DEFINITIVO -->
-
                         <select
                             id="adm-mov-comando"
                             aria-label="Seleccionar comando"
                             required
                         >
-
-                            <option value="1">
-                                1 - Avanzar
-                            </option>
-
-                            <option value="2">
-                                2 - Retroceder
-                            </option>
-
-                            <option value="3">
-                                3 - Girar cabina izquierda
-                            </option>
-
-                            <option value="4">
-                                4 - Girar cabina derecha
-                            </option>
-
-                            <option value="5">
-                                5 - Foco
-                            </option>
-
-                            <option value="6">
-                                6 - Sonido
-                            </option>
-
-                            <option value="7">
-                                7 - Velocidad
-                            </option>
-
-                            <option value="8">
-                                8 - Power
-                            </option>
-
-                            <option value="9">
-                                9 - Subir garra
-                            </option>
-
-                            <option value="10">
-                                10 - Bajar garra
-                            </option>
-
-                            <option value="11">
-                                11 - Girar carrito derecha
-                            </option>
-
-                            <option value="12">
-                                12 - Girar carrito izquierda
-                            </option>
-
-                            <option value="14">
-                                14 - Apagar todo
-                            </option>
-
+                            <option value="1">1 - Avanzar</option>
+                            <option value="2">2 - Retroceder</option>
+                            <option value="3">3 - Girar cabina izquierda</option>
+                            <option value="4">4 - Girar cabina derecha</option>
+                            <option value="5">5 - Foco</option>
+                            <option value="6">6 - Sonido</option>
+                            <option value="7">7 - Velocidad</option>
+                            <option value="8">8 - Power</option>
+                            <option value="9">9 - Subir garra</option>
+                            <option value="10">10 - Bajar garra</option>
+                            <option value="11">11 - Girar carrito derecha</option>
+                            <option value="12">12 - Girar carrito izquierda</option>
+                            <option value="14">14 - Apagar todo</option>
                         </select>
-
-
-                        <!-- Orden del movimiento -->
 
                         <input
                             id="adm-mov-orden"
@@ -1177,21 +1463,15 @@
                             required
                         >
 
-
-                        <!-- Duración -->
-
                         <input
                             id="adm-mov-duracion"
                             type="number"
                             min="100"
                             max="10000"
                             value="1000"
-                            placeholder="Duración en milisegundos"
+                            placeholder="Duración en ms"
                             required
                         >
-
-
-                        <!-- Pausa -->
 
                         <input
                             id="adm-mov-pausa"
@@ -1199,10 +1479,9 @@
                             min="0"
                             max="10000"
                             value="500"
-                            placeholder="Pausa en milisegundos"
+                            placeholder="Pausa en ms"
                             required
                         >
-
 
                         <button type="submit">
                             Agregar movimiento
@@ -1210,8 +1489,6 @@
 
                     </form>
 
-
-                    <!-- Eliminar movimiento -->
 
                     <form id="adm-eliminar-mov">
 
@@ -1227,9 +1504,6 @@
                         </button>
 
                     </form>
-
-
-                    <!-- Consultar movimientos -->
 
                     <button
                         id="adm-cargar-movs"
@@ -1248,8 +1522,6 @@
                     </div>
 
 
-                    <!-- Clasificar demostración -->
-
                     <form id="adm-guardar-demo">
 
                         <select
@@ -1266,7 +1538,6 @@
                             id="adm-tipo-demo"
                             aria-label="Tipo de demostración"
                         >
-
                             <option value="FABRICA">
                                 FABRICA
                             </option>
@@ -1278,7 +1549,6 @@
                             <option value="LEGADO">
                                 LEGADO
                             </option>
-
                         </select>
 
                         <button type="submit">
@@ -1286,9 +1556,6 @@
                         </button>
 
                     </form>
-
-
-                    <!-- Tabla de demostraciones -->
 
                     <div class="table-responsive">
 
@@ -1302,10 +1569,9 @@
                 </details>
 
 
-
-                <!-- ==================================
-                     REGISTRO DE AUDITORÍA
-                ================================== -->
+                <!-- ==================================================
+                     AUDITORÍA
+                ================================================== -->
 
                 <details class="admin43-card admin43-desplegable">
 
@@ -1336,73 +1602,24 @@
         </section>
 
 
-
-        <!-- ==========================================
-             CRÉDITOS
-        ========================================== -->
+        <!-- CRÉDITOS -->
 
         <div class="footer-credits mt-auto text-center pt-2 pb-1">
-
             Desarrollado por Maricarmen Suárez Olivares · 2026
-
         </div>
 
     </div>
 
 
+    <!-- ==================================================
+         ARCHIVOS JAVASCRIPT
+    ================================================== -->
 
-    <!-- ==========================================
-         SCRIPTS
-         ORDEN DE CARGA
-    ========================================== -->
-
-    <!-- Configuración general -->
     <script src="assets/js/config.js"></script>
-
-    <!-- Conexión con FastAPI -->
     <script src="assets/js/api.js"></script>
-
-    <!-- Joysticks -->
     <script src="assets/js/joystick.js"></script>
-
-    <!-- Control y monitoreo -->
     <script src="assets/js/app.js"></script>
-
-    <!-- Administración y roles -->
     <script src="assets/js/admin43.js"></script>
 
-
-    <!-- Prevención de gestos multitáctiles -->
-    <script>
-        [
-            'gesturestart',
-            'gesturechange',
-            'gestureend'
-        ].forEach(function (nombreEvento) {
-
-            document.addEventListener(
-                nombreEvento,
-                function (evento) {
-                    evento.preventDefault();
-                },
-                { passive: false }
-            );
-
-        });
-
-        document.addEventListener(
-            'touchmove',
-            function (evento) {
-
-                if (evento.touches.length > 1) {
-                    evento.preventDefault();
-                }
-
-            },
-            { passive: false }
-        );
-    </script>
-
 </body>
-
 </html>

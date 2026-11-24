@@ -1,56 +1,116 @@
 
 /*
- * ==========================================================
- * ADMINISTRACION 4.3 - PLATAFORMA IoT
- * ==========================================================
- *
- * Roles:
- * - ADMINISTRADOR
- * - USUARIO
- * - INVITADO
- *
- * Integracion:
- * - FastAPI
- * - Amazon RDS MySQL
- * - CONTROL 4.1
- * - MONITOREO 4.2
- *
- * IMPORTANTE:
- * Los permisos del frontend solo controlan la interfaz.
- * FastAPI debe verificar todos los permisos nuevamente.
- */
+==========================================================
+ADMINISTRACION 4.3 - PLATAFORMA IoT
+==========================================================
+
+CONTROL 4.1 + MONITOREO 4.2 + ADMINISTRACION 4.3
+
+Roles:
+- ADMINISTRADOR
+- USUARIO
+- INVITADO
+
+Vehiculos dinamicos:
+- Administrador: selecciona unidad
+- Usuario: sus unidades asignadas
+- Invitado: unidad reservada
+
+Permisos individuales:
+- Joysticks
+- Monitoreo
+- Foco
+- Sonido
+- Velocidad
+- Power
+- Ejecutar demos
+- Editar demos
+
+La autorizacion definitiva corresponde a FastAPI.
+==========================================================
+*/
 
 (() => {
     "use strict";
 
-    // ======================================================
-    // CONFIGURACION
-    // ======================================================
-
     const BASE = `https://${CONFIG.API_URL_BASE}`;
-
     const TOKEN_KEY = "iot43_token";
+
+    const PERMISOS = [
+        "joystick",
+        "monitoreo",
+        "foco",
+        "sonido",
+        "velocidad",
+        "power",
+        "ejecutar_demos",
+        "editar_demos"
+    ];
+
+    const IDS_PERMISOS = {
+        joystick: "adm-perm-joystick",
+        monitoreo: "adm-perm-monitoreo",
+        foco: "adm-perm-foco",
+        sonido: "adm-perm-sonido",
+        velocidad: "adm-perm-velocidad",
+        power: "adm-perm-power",
+        ejecutar_demos: "adm-perm-ejecutar-demos",
+        editar_demos: "adm-perm-editar-demos"
+    };
+
+    const COMANDO_PERMISO = {
+        1: "joystick",
+        2: "joystick",
+        3: "joystick",
+        4: "joystick",
+        5: "foco",
+        6: "sonido",
+        7: "velocidad",
+        8: "power",
+        9: "joystick",
+        10: "joystick",
+        11: "joystick",
+        12: "joystick"
+    };
 
     const el = id => document.getElementById(id);
 
-    const val = id => {
-        const elemento = el(id);
-        return elemento?.value?.trim() || "";
-    };
+    const val = id =>
+        String(el(id)?.value ?? "").trim();
 
-    const safe = valor => String(valor ?? "—");
+    const safe = valor =>
+        String(valor ?? "—");
+
+    const permisosVacios = () =>
+        Object.fromEntries(
+            PERMISOS.map(nombre => [nombre, false])
+        );
 
     const state = {
         token: sessionStorage.getItem(TOKEN_KEY) || "",
-        guest: "",
-        guestVehicleId: null,
         perfil: null,
+
         flota: [],
-        modelos: [],
         usuarios: [],
+        modelos: [],
         vehiculos: [],
         demos: [],
-        cargando: false
+
+        vehiculoActivo: null,
+        permisosActuales: permisosVacios(),
+
+        guest: "",
+        guestVehicleId: null,
+        guestExpiresAt: 0,
+        guestTimer: null,
+
+        permisosCargados: false,
+        permisosUsuarioId: null,
+        permisosVehiculoId: null,
+
+        cargando: false,
+        iniciandoSesion: false,
+        reservando: false
     };
 
     // ======================================================
@@ -58,26 +118,62 @@
     // ======================================================
 
     function msg(texto, error = false) {
-        const destino = el("admin-msg");
+        const nodo = el("admin-msg");
 
-        if (!destino) return;
+        if (nodo) {
+            nodo.textContent = texto;
+            nodo.style.color = error
+                ? "#b42335"
+                : "#256c47";
+        }
 
-        destino.textContent = texto;
+        console[error ? "warn" : "log"](
+            "[ADMIN 4.3]",
+            texto
+        );
+    }
 
-        destino.style.color = error
+    function msgAcceso(texto, error = false) {
+        const nodo = el("acceso-mensaje");
+
+        if (!nodo) return;
+
+        nodo.textContent = texto;
+        nodo.style.color = error
+            ? "#ff6666"
+            : "#256c47";
+    }
+
+    function msgPermisos(texto, error = false) {
+        const nodo = el("adm-permisos-mensaje");
+
+        if (!nodo) return;
+
+        nodo.textContent = texto;
+        nodo.style.color = error
             ? "#b42335"
             : "#256c47";
     }
 
+    async function run(funcion) {
+        try {
+            return await funcion();
+        } catch (error) {
+            console.error("[ADMIN 4.3]", error);
+            msg(error.message, true);
+            return null;
+        }
+    }
+
     // ======================================================
-    // SOLICITUDES AL BACKEND
+    // SOLICITUDES A FASTAPI
     // ======================================================
 
     async function api(
         ruta,
         metodo = "GET",
         cuerpo = undefined,
-        invitado = false
+        tipo = "AUTO"
     ) {
         const headers = {};
 
@@ -85,13 +181,27 @@
             headers["Content-Type"] = "application/json";
         }
 
-        if (invitado) {
+        if (
+            tipo === "USUARIO" ||
+            (tipo === "AUTO" && state.token)
+        ) {
+            if (state.token) {
+                headers.Authorization =
+                    `Bearer ${state.token}`;
+            }
+        }
+
+        if (
+            tipo === "INVITADO" ||
+            (
+                tipo === "AUTO" &&
+                !state.token &&
+                state.guest
+            )
+        ) {
             if (state.guest) {
                 headers["X-Guest-Token"] = state.guest;
             }
-        } else if (state.token) {
-            headers["Authorization"] =
-                `Bearer ${state.token}`;
         }
 
         let respuesta;
@@ -106,7 +216,7 @@
             });
         } catch (error) {
             throw new Error(
-                "No se pudo conectar con FastAPI en AWS."
+                "No se pudo conectar con FastAPI."
             );
         }
 
@@ -127,15 +237,13 @@
                     .join("; ");
             }
 
-            if (typeof detalle !== "string") {
-                detalle = `Error HTTP ${respuesta.status}`;
-            }
-
-            const error = new Error(detalle);
+            const error = new Error(
+                typeof detalle === "string"
+                    ? detalle
+                    : `Error HTTP ${respuesta.status}`
+            );
 
             error.status = respuesta.status;
-            error.ruta = ruta;
-
             throw error;
         }
 
@@ -143,31 +251,183 @@
     }
 
     // ======================================================
-    // FUNCION DE EJECUCION SEGURA
+    // VALIDACIONES
     // ======================================================
 
-    async function run(funcion) {
-        try {
-            await funcion();
-        } catch (error) {
-            console.error(
-                "[ADMIN 4.3]",
-                error
-            );
-
-            msg(error.message, true);
+    function idValido(valor) {
+        if (
+            valor === null ||
+            valor === undefined ||
+            valor === ""
+        ) {
+            return null;
         }
+
+        const numero = Number(valor);
+
+        return (
+            Number.isSafeInteger(numero) &&
+            numero > 0
+        ) ? numero : null;
+    }
+
+    function esAdministrador() {
+        return (
+            state.perfil?.rol === "ADMINISTRADOR" &&
+            Boolean(state.token)
+        );
+    }
+
+    function esUsuario() {
+        return (
+            state.perfil?.rol === "USUARIO" &&
+            Boolean(state.token)
+        );
+    }
+
+    function invitadoVigente() {
+        return Boolean(
+            state.guest &&
+            state.guestVehicleId &&
+            Date.now() < state.guestExpiresAt
+        );
+    }
+
+    function tieneVehiculo(id) {
+        return state.flota.some(
+            v => Number(v.id_vehiculo) === Number(id)
+        );
+    }
+
+    function getRole() {
+        if (esAdministrador()) return "ADMINISTRADOR";
+        if (esUsuario()) return "USUARIO";
+        if (invitadoVigente()) return "INVITADO";
+
+        return "SIN_SESION";
+    }
+
+    function getVehicle() {
+        return idValido(state.vehiculoActivo);
+    }
+
+    function getPermisos() {
+        return { ...state.permisosActuales };
+    }
+
+    function puedeUsarPermiso(nombre) {
+        if (!getVehicle()) return false;
+
+        if (esAdministrador()) return true;
+
+        if (esUsuario()) {
+            return (
+                tieneVehiculo(getVehicle()) &&
+                state.permisosActuales[nombre] === true
+            );
+        }
+
+        if (invitadoVigente()) {
+            return (
+                getVehicle() ===
+                Number(state.guestVehicleId) &&
+                nombre !== "editar_demos"
+            );
+        }
+
+        return false;
+    }
+
+    function canControl() {
+        if (!getVehicle()) return false;
+
+        return [
+            "joystick",
+            "foco",
+            "sonido",
+            "velocidad",
+            "power"
+        ].some(puedeUsarPermiso);
+    }
+
+    function canCommand(comando) {
+        const numero = Number(comando);
+
+        if (numero === 14) {
+            return (
+                esAdministrador() ||
+                (
+                    esUsuario() &&
+                    tieneVehiculo(getVehicle())
+                ) ||
+                (
+                    invitadoVigente() &&
+                    getVehicle() ===
+                    Number(state.guestVehicleId)
+                )
+            );
+        }
+
+        const permiso = COMANDO_PERMISO[numero];
+
+        return Boolean(
+            permiso &&
+            puedeUsarPermiso(permiso)
+        );
+    }
+
+    function canDemo() {
+        return puedeUsarPermiso("ejecutar_demos");
+    }
+
+    function canMonitor() {
+        return puedeUsarPermiso("monitoreo");
+    }
+
+    function headersParaControl() {
+        if (
+            state.token &&
+            (esAdministrador() || esUsuario())
+        ) {
+            return {
+                Authorization: `Bearer ${state.token}`
+            };
+        }
+
+        if (invitadoVigente()) {
+            return {
+                "X-Guest-Token": state.guest
+            };
+        }
+
+        return {};
     }
 
     // ======================================================
-    // HERRAMIENTAS PARA SELECTORES
+    // COMUNICAR CAMBIOS A APP.JS
     // ======================================================
 
-    function opt(valor, texto) {
+    function avisarCambioSesion() {
+        window.dispatchEvent(
+            new Event("iot:sesion-cambiada")
+        );
+    }
+
+    function avisarCambioVehiculo() {
+        window.dispatchEvent(
+            new Event("iot:vehiculo-cambiado")
+        );
+    }
+
+    // ======================================================
+    // SELECTORES GENERALES
+    // ======================================================
+
+    function opt(valor, etiqueta) {
         const opcion = document.createElement("option");
 
         opcion.value = String(valor ?? "");
-        opcion.textContent = String(texto ?? "");
+        opcion.textContent = String(etiqueta ?? "");
 
         return opcion;
     }
@@ -194,16 +454,18 @@
             );
         });
 
-        const existe = Array.from(select.options)
-            .some(opcion => opcion.value === anterior);
-
-        if (anterior && existe) {
+        if (
+            anterior &&
+            Array.from(select.options).some(
+                opcion => opcion.value === anterior
+            )
+        ) {
             select.value = anterior;
         }
     }
 
     // ======================================================
-    // HERRAMIENTAS PARA TABLAS
+    // TABLAS
     // ======================================================
 
     function fillTable(
@@ -219,230 +481,339 @@
         tabla.replaceChildren();
 
         const thead = document.createElement("thead");
-        const trHead = document.createElement("tr");
+        const cabecera = document.createElement("tr");
 
         encabezados.forEach(titulo => {
             const th = document.createElement("th");
+
             th.textContent = titulo;
-            trHead.append(th);
+            cabecera.append(th);
         });
 
-        thead.append(trHead);
+        thead.append(cabecera);
         tabla.append(thead);
 
         const tbody = document.createElement("tbody");
 
         if (!filas.length) {
-            const filaVacia = document.createElement("tr");
+            const fila = document.createElement("tr");
             const celda = document.createElement("td");
 
             celda.colSpan = encabezados.length;
-            celda.textContent = "No hay registros disponibles.";
-            celda.className = "text-center";
+            celda.textContent =
+                "No hay registros disponibles.";
 
-            filaVacia.append(celda);
-            tbody.append(filaVacia);
+            fila.append(celda);
+            tbody.append(fila);
         }
 
-        filas.forEach(fila => {
-            const tr = document.createElement("tr");
+        filas.forEach(item => {
+            const fila = document.createElement("tr");
 
-            obtenerValores(fila).forEach(valor => {
-                const td = document.createElement("td");
+            obtenerValores(item).forEach(valor => {
+                const celda = document.createElement("td");
 
-                td.textContent = safe(valor);
-                tr.append(td);
+                celda.textContent = safe(valor);
+                fila.append(celda);
             });
 
-            tbody.append(tr);
+            tbody.append(fila);
         });
 
         tabla.append(tbody);
     }
 
     // ======================================================
-    // PERMISOS
+    // SELECTOR DINÁMICO DEL ADMINISTRADOR
     // ======================================================
 
-    function esAdministrador() {
-        return state.perfil?.rol === "ADMINISTRADOR";
-    }
+    function crearSelectorVehiculo() {
+        const barra = el("barra-sesion");
 
-    function esUsuario() {
-        return state.perfil?.rol === "USUARIO";
-    }
+        if (
+            !barra ||
+            el("iot-selector-vehiculo")
+        ) {
+            return;
+        }
 
-    function tieneVehiculo(idVehiculo) {
-        return state.flota.some(vehiculo =>
-            Number(vehiculo.id_vehiculo) ===
-            Number(idVehiculo)
+        const contenedor = document.createElement("div");
+        contenedor.id = "iot-contenedor-vehiculo";
+        contenedor.style.display = "none";
+        contenedor.style.flex = "1";
+        contenedor.style.maxWidth = "280px";
+
+        const select = document.createElement("select");
+
+        select.id = "iot-selector-vehiculo";
+        select.className = "form-select form-select-sm";
+
+        select.setAttribute(
+            "aria-label",
+            "Seleccionar vehículo a controlar"
+        );
+
+        select.append(
+            opt("", "Seleccionar vehículo")
+        );
+
+        contenedor.append(select);
+
+        const botonSalir = el("btn-salir-plataforma");
+
+        if (botonSalir) {
+            barra.insertBefore(contenedor, botonSalir);
+        } else {
+            barra.append(contenedor);
+        }
+
+        select.addEventListener(
+            "change",
+            () => run(async () => {
+                if (!esAdministrador()) return;
+
+                const id = idValido(select.value);
+
+                state.vehiculoActivo = id;
+
+                aplicarPermisosAdministrador();
+
+                redraw();
+                avisarCambioVehiculo();
+            })
         );
     }
 
-    function canControl() {
-        if (!state.perfil || !state.token) {
-            return false;
+    function actualizarSelectorVehiculo() {
+        crearSelectorVehiculo();
+
+        const contenedor = el("iot-contenedor-vehiculo");
+
+        if (contenedor) {
+            contenedor.style.display =
+                esAdministrador() ? "block" : "none";
+        }
+
+        if (!esAdministrador()) return;
+
+        updateSelect(
+            "iot-selector-vehiculo",
+            state.vehiculos.map(v => ({
+                id: v.id_vehiculo,
+                nombre: `#${v.id_vehiculo} ${v.nombre}`
+            })),
+            "Seleccionar vehículo",
+            v => v.nombre
+        );
+
+        const selector = el("iot-selector-vehiculo");
+
+        if (selector) {
+            selector.value =
+                String(state.vehiculoActivo || "");
+        }
+    }
+
+    // ======================================================
+    // PERMISOS DEL VEHÍCULO ACTIVO
+    // ======================================================
+
+    function aplicarPermisosAdministrador() {
+        if (!esAdministrador()) return;
+
+        state.permisosActuales = Object.fromEntries(
+            PERMISOS.map(nombre => [nombre, true])
+        );
+    }
+
+    async function cargarPermisosPropios() {
+        state.permisosActuales = permisosVacios();
+
+        if (!esUsuario()) return;
+
+        const idVehiculo = getVehicle();
+
+        if (
+            !idVehiculo ||
+            !tieneVehiculo(idVehiculo)
+        ) {
+            return;
+        }
+
+        /*
+         * Esta ruta se implementará en FastAPI
+         * en el próximo paso.
+         *
+         * Hasta entonces se mantienen denegados
+         * los permisos individuales.
+         */
+        const datos = await api(
+            `/api/admin/mi-permisos/${idVehiculo}`,
+            "GET",
+            undefined,
+            "USUARIO"
+        );
+
+        if (
+            !datos.permisos ||
+            typeof datos.permisos !== "object"
+        ) {
+            throw new Error(
+                "FastAPI no devolvió los permisos."
+            );
+        }
+
+        state.permisosActuales = Object.fromEntries(
+            PERMISOS.map(nombre => [
+                nombre,
+                datos.permisos[nombre] === true
+            ])
+        );
+    }
+
+    async function seleccionarVehiculo(id) {
+        const elegido = idValido(id);
+
+        if (!elegido) {
+            state.vehiculoActivo = null;
+            state.permisosActuales = permisosVacios();
+
+            redraw();
+            avisarCambioVehiculo();
+            return;
+        }
+
+        if (esUsuario() && !tieneVehiculo(elegido)) {
+            throw new Error(
+                "El vehículo no pertenece a este usuario."
+            );
+        }
+
+        if (
+            invitadoVigente() &&
+            elegido !== Number(state.guestVehicleId)
+        ) {
+            throw new Error(
+                "El vehículo no corresponde a la reserva."
+            );
         }
 
         if (esAdministrador()) {
-            return true;
-        }
+            const existe = state.vehiculos.some(
+                v => Number(v.id_vehiculo) === elegido
+            );
 
-        if (esUsuario()) {
-            return tieneVehiculo(CONFIG.VEHICULO_ID);
-        }
-
-        return false;
-    }
-
-    function canDemo() {
-        if (canControl()) {
-            return true;
-        }
-
-        return (
-            Boolean(state.guest) &&
-            Number(state.guestVehicleId) ===
-            Number(CONFIG.VEHICULO_ID)
-        );
-    }
-
-    function headersParaControl() {
-        if (canControl() && state.token) {
-            return {
-                Authorization: `Bearer ${state.token}`
-            };
-        }
-
-        if (canDemo() && state.guest) {
-            return {
-                "X-Guest-Token": state.guest
-            };
-        }
-
-        return {};
-    }
-
-    // ======================================================
-    // ESTADO DE LA INTERFAZ
-    // ======================================================
-
-    function redraw() {
-        const rol = state.perfil?.rol || null;
-
-        const identidad = el("admin-identidad");
-
-        if (identidad) {
-            if (rol) {
-                identidad.textContent =
-                    `${state.perfil.nombre} · ${rol}`;
-            } else if (state.guest) {
-                identidad.textContent =
-                    "INVITADO · Reserva temporal";
-            } else {
-                identidad.textContent = "Sin sesión";
+            if (!existe) {
+                throw new Error(
+                    "Selecciona un vehículo registrado."
+                );
             }
         }
 
-        if (el("admin-login")) {
-            el("admin-login").hidden = Boolean(rol);
+        state.vehiculoActivo = elegido;
+        state.permisosActuales = permisosVacios();
+
+        if (esAdministrador()) {
+            aplicarPermisosAdministrador();
+        } else if (esUsuario()) {
+            await cargarPermisosPropios();
+        } else if (invitadoVigente()) {
+            state.permisosActuales = {
+                ...permisosVacios(),
+                joystick: true,
+                monitoreo: true,
+                foco: true,
+                sonido: true,
+                velocidad: true,
+                power: true,
+                ejecutar_demos: true
+            };
         }
 
-        if (el("admin-logout")) {
-            el("admin-logout").hidden = !rol;
-        }
-
-        if (el("admin-panel")) {
-            el("admin-panel").hidden =
-                rol !== "ADMINISTRADOR";
-        }
-
-        if (el("admin-cliente")) {
-            el("admin-cliente").hidden =
-                rol !== "USUARIO";
-        }
-
-        if (el("admin-publico")) {
-            el("admin-publico").hidden = Boolean(rol);
-        }
-
-        if (el("admin-invitado")) {
-            el("admin-invitado").hidden = Boolean(rol);
-        }
-
-        if (el("admin-flota")) {
-            el("admin-flota").hidden =
-                rol !== "USUARIO";
-        }
-
-        const permitido = canControl();
-
-        const aviso = el("admin-aviso-control");
-
-        if (aviso) {
-            aviso.hidden = permitido;
-
-            aviso.textContent = permitido
-                ? "Control habilitado para su cuenta."
-                : "El control manual requiere una cuenta autorizada para el vehículo.";
-        }
-
-        // Restringir botones de control manual.
-        // No se habilitan para invitados.
-        [
-            "btn-foco",
-            "btn-sonido",
-            "btn-velocidad"
-        ].forEach(id => {
-            const boton = el(id);
-
-            if (boton) {
-                boton.disabled = !permitido;
-            }
-        });
-
-        // El botón de apagado no debe permitir
-        // acciones no autorizadas desde la web.
-        // El backend debe validar el comando 14.
-        const botonApagar = el("btn-detener");
-
-        if (botonApagar) {
-            botonApagar.disabled = !permitido;
-        }
-
-        const botonDemo = el("btn-play-demo");
-
-        if (botonDemo) {
-            botonDemo.disabled = !canDemo();
-        }
-
-        const flota = el("admin-mi-flota");
-
-        if (flota) {
-            flota.textContent = state.flota.length
-                ? state.flota.map(vehiculo =>
-                    `#${vehiculo.id_vehiculo} ${vehiculo.nombre}`
-                ).join(" · ")
-                : "No hay vehículos asignados.";
-        }
-
-        renderCliente();
+        redraw();
+        avisarCambioVehiculo();
     }
 
     // ======================================================
-    // NAVEGACION DE PANTALLAS
+    // PANTALLAS
     // ======================================================
+
+    function mostrarAcceso() {
+        const acceso = el("pantalla-acceso");
+        const app = el("aplicacion-iot");
+
+        if (acceso) {
+            acceso.hidden = false;
+            acceso.style.display = "flex";
+        }
+
+        if (app) {
+            app.hidden = true;
+            app.style.display = "none";
+        }
+    }
+
+    function mostrarAplicacion() {
+        const acceso = el("pantalla-acceso");
+        const app = el("aplicacion-iot");
+
+        if (acceso) {
+            acceso.hidden = true;
+            acceso.style.display = "none";
+        }
+
+        if (app) {
+            app.hidden = false;
+            app.style.display = "flex";
+        }
+    }
+
+    function panelLogin() {
+        if (el("acceso-panel-login")) {
+            el("acceso-panel-login").hidden = false;
+        }
+
+        if (el("acceso-panel-invitado")) {
+            el("acceso-panel-invitado").hidden = true;
+        }
+
+        msgAcceso("");
+    }
+
+    function panelInvitado() {
+        if (el("acceso-panel-login")) {
+            el("acceso-panel-login").hidden = true;
+        }
+
+        if (el("acceso-panel-invitado")) {
+            el("acceso-panel-invitado").hidden = false;
+        }
+
+        msgAcceso("");
+    }
 
     function view(tab) {
-        const vistas = [
+        if (
+            tab === "tab-administracion" &&
+            !esAdministrador()
+        ) {
+            tab = "tab-control";
+        }
+
+        if (
+            tab === "tab-monitoreo" &&
+            !canMonitor()
+        ) {
+            tab = "tab-control";
+        }
+
+        [
             ["tab-control", "view-control"],
             ["tab-monitoreo", "view-monitoreo"],
             ["tab-administracion", "view-administracion"]
-        ];
-
-        vistas.forEach(([botonId, vistaId]) => {
+        ].forEach(([botonId, vistaId]) => {
             const boton = el(botonId);
-            const seccion = el(vistaId);
+            const vista = el(vistaId);
 
             const activa = botonId === tab;
 
@@ -450,10 +821,9 @@
                 boton.classList.toggle("active", activa);
             }
 
-            if (seccion) {
-                seccion.style.display = activa
-                    ? "flex"
-                    : "none";
+            if (vista) {
+                vista.style.display =
+                    activa ? "flex" : "none";
             }
         });
 
@@ -463,101 +833,404 @@
         ) {
             run(fetchAll);
         }
+
+        window.scrollTo(0, 0);
     }
 
     // ======================================================
-    // CARGAR SESION
+    // ACTUALIZAR INTERFAZ
     // ======================================================
 
-    async function loadMe() {
+    function redraw() {
+        const rol = getRole();
+
+        const identidad = el("admin-identidad");
+        const etiqueta = el("sesion-etiqueta");
+
+        let nombre = "Sin sesión";
+
+        if (state.perfil) {
+            nombre =
+                `${state.perfil.nombre} · ${rol}`;
+        } else if (invitadoVigente()) {
+            nombre =
+                "INVITADO · Reserva temporal";
+        }
+
+        if (identidad) identidad.textContent = nombre;
+        if (etiqueta) etiqueta.textContent = nombre;
+
+        const barra = el("barra-sesion");
+
+        if (barra) {
+            barra.hidden = rol === "SIN_SESION";
+            barra.style.display =
+                rol === "SIN_SESION"
+                    ? "none"
+                    : "flex";
+        }
+
+        const tabAdmin = el("tab-administracion");
+
+        if (tabAdmin) {
+            tabAdmin.hidden = !esAdministrador();
+            tabAdmin.style.display =
+                esAdministrador() ? "" : "none";
+        }
+
+        const tabMonitor = el("tab-monitoreo");
+
+        if (tabMonitor) {
+            tabMonitor.hidden = !canMonitor();
+            tabMonitor.style.display =
+                canMonitor() ? "" : "none";
+        }
+
+        if (el("admin-panel")) {
+            el("admin-panel").hidden =
+                !esAdministrador();
+        }
+
+        if (el("admin-cliente")) {
+            el("admin-cliente").hidden =
+                !esUsuario();
+        }
+
+        if (el("admin-publico")) {
+            el("admin-publico").hidden =
+                Boolean(state.perfil);
+        }
+
+        if (el("admin-invitado")) {
+            el("admin-invitado").hidden =
+                Boolean(state.perfil);
+        }
+
+        if (el("admin-login")) {
+            el("admin-login").hidden =
+                Boolean(state.perfil);
+        }
+
+        if (el("admin-logout")) {
+            el("admin-logout").hidden =
+                !state.perfil;
+        }
+
+        if (el("admin-flota")) {
+            el("admin-flota").hidden =
+                !esUsuario();
+        }
+
+        [
+            ["btn-foco", 5],
+            ["btn-sonido", 6],
+            ["btn-velocidad", 7],
+            ["btn-detener", 14]
+        ].forEach(([id, comando]) => {
+            const boton = el(id);
+
+            if (boton) {
+                boton.disabled = !canCommand(comando);
+            }
+        });
+
+        const botonDemo = el("btn-play-demo");
+
+        if (botonDemo) {
+            botonDemo.disabled = !canDemo();
+        }
+
+        const aviso = el("admin-aviso-control");
+
+        if (aviso) {
+            aviso.hidden = canControl();
+
+            aviso.textContent = canControl()
+                ? "Control autorizado."
+                : "No hay funciones de control autorizadas.";
+        }
+
+        const flota = el("admin-mi-flota");
+
+        if (flota) {
+            flota.textContent = state.flota.length
+                ? state.flota.map(v =>
+                    `#${v.id_vehiculo} ${v.nombre}`
+                ).join(" · ")
+                : "Sin vehículos asignados.";
+        }
+
+        actualizarSelectorVehiculo();
+        renderCliente();
+
+        if (rol === "SIN_SESION") {
+            mostrarAcceso();
+        } else {
+            mostrarAplicacion();
+        }
+    }
+
+    // ======================================================
+    // AUTENTICACIÓN Y FLOTA
+    // ======================================================
+
+    async function cargarPerfil() {
         if (!state.token) {
             state.perfil = null;
             state.flota = [];
-
-            redraw();
             return;
         }
 
-        // PRIMERA CONSULTA:
-        // Solo un error de autenticacion invalida
-        // debe eliminar la sesion.
         try {
-            state.perfil = await api("/api/auth/me");
+            state.perfil = await api(
+                "/api/auth/me",
+                "GET",
+                undefined,
+                "USUARIO"
+            );
+
         } catch (error) {
+            state.perfil = null;
+            state.flota = [];
+
             if (
                 error.status === 401 ||
                 error.status === 403
             ) {
                 state.token = "";
-                state.perfil = null;
-                state.flota = [];
-
                 sessionStorage.removeItem(TOKEN_KEY);
-
-                redraw();
-
-                msg(
-                    "La sesión no es válida. Inicia sesión nuevamente.",
-                    true
-                );
-
-                return;
             }
 
-            // Un problema de red no implica
-            // que las credenciales sean incorrectas.
-            state.perfil = null;
-            state.flota = [];
-
-            redraw();
-            msg(error.message, true);
-
-            return;
+            throw error;
         }
 
-        // SEGUNDA CONSULTA:
-        // Una falla al consultar la flota
-        // NO elimina una sesion valida.
         state.flota = [];
 
         if (esUsuario()) {
             try {
                 const flota = await api(
-                    "/api/admin/mi-flota"
+                    "/api/admin/mi-flota",
+                    "GET",
+                    undefined,
+                    "USUARIO"
                 );
 
                 if (Array.isArray(flota)) {
                     state.flota = flota;
-                } else {
-                    console.warn(
-                        "[ADMIN] mi-flota no devolvió una lista."
-                    );
                 }
 
             } catch (error) {
-                console.warn(
-                    "[ADMIN] No se pudo consultar la flota:",
-                    error
-                );
-
                 msg(
-                    "Sesión iniciada, pero no se pudo consultar la flota: " +
-                    error.message,
+                    "No se pudo consultar la flota.",
                     true
+                );
+            }
+
+            const primeraUnidad =
+                state.flota.length
+                    ? Number(state.flota[0].id_vehiculo)
+                    : null;
+
+            state.vehiculoActivo = primeraUnidad;
+
+            try {
+                await cargarPermisosPropios();
+            } catch (error) {
+                state.permisosActuales =
+                    permisosVacios();
+
+                console.warn(
+                    "[PERMISOS] Pendiente de verificar:",
+                    error.message
                 );
             }
         }
 
-        redraw();
-
         if (esAdministrador()) {
             await fetchAll();
+
+            const existeActual =
+                state.vehiculos.some(v =>
+                    Number(v.id_vehiculo) ===
+                    Number(state.vehiculoActivo)
+                );
+
+            if (!existeActual) {
+                state.vehiculoActivo =
+                    state.vehiculos.length
+                        ? Number(
+                            state.vehiculos[0].id_vehiculo
+                        )
+                        : null;
+            }
+
+            aplicarPermisosAdministrador();
+        }
+
+        redraw();
+        avisarCambioSesion();
+    }
+
+    async function iniciarSesion(correo, password) {
+        if (state.iniciandoSesion) return;
+
+        state.iniciandoSesion = true;
+
+        const boton = el("acceso-btn-login");
+
+        if (boton) boton.disabled = true;
+
+        msgAcceso("Verificando credenciales...");
+
+        try {
+            const datos = await api(
+                "/api/auth/login",
+                "POST",
+                { correo, password },
+                "PUBLICO"
+            );
+
+            if (!datos.token) {
+                throw new Error(
+                    "FastAPI no devolvió un token."
+                );
+            }
+
+            state.token = datos.token;
+
+            sessionStorage.setItem(
+                TOKEN_KEY,
+                datos.token
+            );
+
+            state.guest = "";
+            state.guestVehicleId = null;
+            state.guestExpiresAt = 0;
+
+            detenerContador();
+
+            await cargarPerfil();
+
+            if (!state.perfil) {
+                throw new Error(
+                    "No se pudo verificar el perfil."
+                );
+            }
+
+            if (el("acceso-password")) {
+                el("acceso-password").value = "";
+            }
+
+            if (el("adm-password")) {
+                el("adm-password").value = "";
+            }
+
+            redraw();
+            view("tab-control");
+
+            msg(`Sesión iniciada: ${state.perfil.rol}`);
+
+        } catch (error) {
+            msgAcceso(error.message, true);
+            msg(error.message, true);
+
+        } finally {
+            state.iniciandoSesion = false;
+
+            if (boton) boton.disabled = false;
         }
     }
 
+    async function cerrarSesion() {
+        if (state.guest) {
+            await finalizarInvitado();
+        }
+
+        if (state.token) {
+            try {
+                await api(
+                    "/api/auth/logout",
+                    "POST",
+                    undefined,
+                    "USUARIO"
+                );
+            } catch (error) {
+                console.warn(
+                    "[AUTH] No se confirmó el cierre remoto.",
+                    error
+                );
+            }
+        }
+
+        state.token = "";
+        state.perfil = null;
+        state.flota = [];
+        state.vehiculoActivo = null;
+        state.permisosActuales = permisosVacios();
+
+        state.guest = "";
+        state.guestVehicleId = null;
+        state.guestExpiresAt = 0;
+
+        sessionStorage.removeItem(TOKEN_KEY);
+
+        detenerContador();
+        limpiarPermisos();
+
+        redraw();
+        avisarCambioSesion();
+        panelLogin();
+    }
+
     // ======================================================
-    // TABLAS DE INVENTARIO
+    // SELECTORES Y TABLAS DE INVENTARIO
     // ======================================================
+
+    function renderCliente() {
+        const destino = el("adm-cliente-lista");
+
+        if (!destino) return;
+
+        destino.replaceChildren();
+
+        if (!esUsuario()) return;
+
+        if (!state.flota.length) {
+            destino.textContent =
+                "No tienes unidades asignadas.";
+            return;
+        }
+
+        state.flota.forEach(v => {
+            const tarjeta = document.createElement("div");
+            tarjeta.className = "admin43-unidad";
+
+            const titulo = document.createElement("strong");
+            titulo.textContent =
+                `${v.nombre} · Vehículo #${v.id_vehiculo}`;
+
+            const estado = document.createElement("small");
+            estado.textContent =
+                `Estado: ${v.estado_comercial || "Sin verificar"}`;
+
+            tarjeta.append(titulo, estado);
+
+            const boton = document.createElement("button");
+            boton.type = "button";
+            boton.textContent = "Seleccionar vehículo";
+
+            boton.addEventListener(
+                "click",
+                () => run(async () => {
+                    await seleccionarVehiculo(v.id_vehiculo);
+                    view("tab-control");
+                })
+            );
+
+            tarjeta.append(boton);
+            destino.append(tarjeta);
+        });
+    }
 
     function renderData() {
         fillTable(
@@ -618,7 +1291,6 @@
             ]
         );
 
-        // Selector de unidades.
         updateSelect(
             "adm-vehiculo",
             state.vehiculos.map(v => ({
@@ -629,18 +1301,16 @@
             v => v.nombre
         );
 
-        // Selector de modelos.
         updateSelect(
             "adm-modelo",
             state.modelos.map(m => ({
                 id: m.id_modelo,
                 nombre: m.nombre
             })),
-            "Sin modelo asignado",
+            "Sin modelo",
             m => m.nombre
         );
 
-        // Selector de propietarios.
         updateSelect(
             "adm-propietario",
             state.usuarios
@@ -656,7 +1326,6 @@
             u => u.nombre
         );
 
-        // Editar comprador.
         updateSelect(
             "adm-edit-usuario",
             state.usuarios
@@ -669,7 +1338,6 @@
             u => u.nombre
         );
 
-        // Editar modelo.
         updateSelect(
             "adm-edit-modelo",
             state.modelos.map(m => ({
@@ -680,7 +1348,6 @@
             m => m.nombre
         );
 
-        // Unidad para demostracion.
         updateSelect(
             "adm-crear-demo-unidad",
             state.vehiculos.map(v => ({
@@ -691,7 +1358,6 @@
             v => v.nombre
         );
 
-        // Selector para movimientos.
         updateSelect(
             "adm-mov-demo-id",
             state.demos.map(d => ({
@@ -702,7 +1368,6 @@
             d => d.nombre
         );
 
-        // Selector para clasificar demo.
         updateSelect(
             "adm-demo",
             state.demos.map(d => ({
@@ -712,11 +1377,9 @@
             "Seleccionar demo",
             d => d.nombre
         );
-    }
 
-    // ======================================================
-    // METRICAS DEL ADMINISTRADOR
-    // ======================================================
+        actualizarSelectoresPermisos();
+    }
 
     function renderMetricas() {
         const destino = el("adm-metricas");
@@ -730,14 +1393,8 @@
                     u => u.rol === "USUARIO"
                 ).length
             ],
-            [
-                "Modelos",
-                state.modelos.length
-            ],
-            [
-                "Unidades",
-                state.vehiculos.length
-            ],
+            ["Modelos", state.modelos.length],
+            ["Unidades", state.vehiculos.length],
             [
                 "Asignadas",
                 state.vehiculos.filter(
@@ -750,17 +1407,13 @@
                     v => v.estado_comercial === "EXHIBICION"
                 ).length
             ],
-            [
-                "Demos",
-                state.demos.length
-            ]
+            ["Demos", state.demos.length]
         ];
 
         destino.replaceChildren();
 
         indicadores.forEach(([titulo, cantidad]) => {
             const tarjeta = document.createElement("div");
-
             tarjeta.className = "admin43-metrica";
 
             const numero = document.createElement("strong");
@@ -774,18 +1427,12 @@
         });
     }
 
-    // ======================================================
-    // CARGAR INVENTARIO
-    // ======================================================
-
     async function fetchAll() {
-        if (!esAdministrador()) return;
-
-        if (state.cargando) return;
+        if (!esAdministrador() || state.cargando) {
+            return;
+        }
 
         state.cargando = true;
-
-        msg("Consultando inventario de Amazon RDS...");
 
         const consultas = [
             ["usuarios", "/api/admin/usuarios"],
@@ -801,7 +1448,7 @@
 
                     if (!Array.isArray(datos)) {
                         throw new Error(
-                            `La respuesta de ${nombre} no es una lista.`
+                            `${nombre} no devolvió una lista.`
                         );
                     }
 
@@ -817,8 +1464,6 @@
                 if (resultado.status === "fulfilled") {
                     state[nombre] = resultado.value;
                 } else {
-                    // No borrar datos previos correctos
-                    // cuando falla una sola consulta.
                     errores.push(
                         `${nombre}: ${resultado.reason.message}`
                     );
@@ -827,15 +1472,16 @@
 
             renderData();
             renderMetricas();
+            actualizarSelectorVehiculo();
 
             if (errores.length) {
                 msg(
-                    "Algunos datos no pudieron actualizarse: " +
+                    "Algunas consultas fallaron: " +
                     errores.join(" | "),
                     true
                 );
             } else {
-                msg("Inventario actualizado correctamente.");
+                msg("Inventario actualizado.");
             }
 
         } finally {
@@ -844,86 +1490,192 @@
     }
 
     // ======================================================
-    // PANEL DEL CLIENTE
+    // PANEL ADMINISTRATIVO DE PERMISOS
     // ======================================================
 
-    function renderCliente() {
-        const destino = el("adm-cliente-lista");
+    function actualizarSelectoresPermisos() {
+        updateSelect(
+            "adm-perm-usuario",
+            state.usuarios
+                .filter(u => u.rol === "USUARIO")
+                .map(u => ({
+                    id: u.id_usuario,
+                    nombre: u.nombre
+                })),
+            "Seleccionar comprador",
+            u => u.nombre
+        );
 
-        if (!destino) return;
+        actualizarVehiculosPermisos();
+    }
 
-        destino.replaceChildren();
+    function actualizarVehiculosPermisos() {
+        const idUsuario = Number(
+            val("adm-perm-usuario")
+        );
 
-        if (!esUsuario()) {
-            return;
+        const disponibles = state.vehiculos
+            .filter(v =>
+                idUsuario > 0 &&
+                Number(v.id_propietario) === idUsuario
+            )
+            .map(v => ({
+                id: v.id_vehiculo,
+                nombre: `#${v.id_vehiculo} ${v.nombre}`
+            }));
+
+        updateSelect(
+            "adm-perm-vehiculo",
+            disponibles,
+            disponibles.length
+                ? "Seleccionar vehículo"
+                : "Sin vehículos asignados",
+            v => v.nombre
+        );
+    }
+
+    function limpiarPermisos() {
+        state.permisosCargados = false;
+        state.permisosUsuarioId = null;
+        state.permisosVehiculoId = null;
+
+        PERMISOS.forEach(nombre => {
+            const nodo = el(IDS_PERMISOS[nombre]);
+
+            if (nodo) nodo.checked = false;
+        });
+
+        const formulario = el("adm-form-permisos");
+
+        if (formulario) {
+            formulario.hidden = true;
+            formulario.style.display = "none";
         }
 
-        if (!state.flota.length) {
-            destino.textContent =
-                "Todavía no tienes unidades asignadas.";
-            return;
-        }
+        msgPermisos("");
+    }
 
-        state.flota.forEach(vehiculo => {
-            const tarjeta = document.createElement("div");
+    function colocarPermisos(permisos) {
+        PERMISOS.forEach(nombre => {
+            const nodo = el(IDS_PERMISOS[nombre]);
 
-            tarjeta.className = "admin43-unidad";
-
-            const titulo = document.createElement("strong");
-
-            titulo.textContent =
-                `${vehiculo.nombre} · Unidad #${vehiculo.id_vehiculo}`;
-
-            const estado = document.createElement("small");
-
-            estado.textContent =
-                `Estado: ${vehiculo.estado_comercial || "Sin verificar"}`;
-
-            tarjeta.append(titulo, estado);
-
-            if (
-                Number(vehiculo.id_vehiculo) ===
-                Number(CONFIG.VEHICULO_ID)
-            ) {
-                const botonControl = document.createElement("button");
-
-                botonControl.type = "button";
-                botonControl.textContent = "Ir a CONTROL";
-
-                botonControl.addEventListener(
-                    "click",
-                    () => view("tab-control")
-                );
-
-                const botonMonitoreo = document.createElement("button");
-
-                botonMonitoreo.type = "button";
-                botonMonitoreo.textContent = "Ver MONITOREO";
-
-                botonMonitoreo.addEventListener(
-                    "click",
-                    () => view("tab-monitoreo")
-                );
-
-                tarjeta.append(
-                    botonControl,
-                    botonMonitoreo
-                );
-            } else {
-                const aviso = document.createElement("small");
-
-                aviso.textContent =
-                    "Esta interfaz todavía está configurada para el vehículo 1.";
-
-                tarjeta.append(aviso);
+            if (nodo) {
+                nodo.checked =
+                    permisos[nombre] === true;
             }
-
-            destino.append(tarjeta);
         });
     }
 
+    async function consultarPermisos() {
+        if (!esAdministrador()) {
+            throw new Error(
+                "Se requiere Administrador."
+            );
+        }
+
+        const idUsuario = Number(
+            val("adm-perm-usuario")
+        );
+
+        const idVehiculo = Number(
+            val("adm-perm-vehiculo")
+        );
+
+        limpiarPermisos();
+
+        if (!idUsuario || !idVehiculo) {
+            throw new Error(
+                "Selecciona un comprador y su vehículo."
+            );
+        }
+
+        const datos = await api(
+            `/api/admin/permisos/${idUsuario}/${idVehiculo}`,
+            "GET",
+            undefined,
+            "USUARIO"
+        );
+
+        if (!datos.permisos) {
+            throw new Error(
+                "FastAPI no devolvió los permisos."
+            );
+        }
+
+        colocarPermisos(datos.permisos);
+
+        state.permisosCargados = true;
+        state.permisosUsuarioId = idUsuario;
+        state.permisosVehiculoId = idVehiculo;
+
+        const formulario = el("adm-form-permisos");
+
+        if (formulario) {
+            formulario.hidden = false;
+            formulario.style.display = "block";
+        }
+
+        msgPermisos(
+            datos.configurado
+                ? "Permisos cargados correctamente."
+                : "Sin configuración. Selecciona los permisos y guarda."
+        );
+    }
+
+    async function guardarPermisos() {
+        if (!esAdministrador()) {
+            throw new Error(
+                "Se requiere Administrador."
+            );
+        }
+
+        const idUsuario = Number(
+            val("adm-perm-usuario")
+        );
+
+        const idVehiculo = Number(
+            val("adm-perm-vehiculo")
+        );
+
+        if (
+            !state.permisosCargados ||
+            idUsuario !== state.permisosUsuarioId ||
+            idVehiculo !== state.permisosVehiculoId
+        ) {
+            throw new Error(
+                "Consulta nuevamente los permisos."
+            );
+        }
+
+        const permisos = Object.fromEntries(
+            PERMISOS.map(nombre => [
+                nombre,
+                Boolean(
+                    el(IDS_PERMISOS[nombre])?.checked
+                )
+            ])
+        );
+
+        const resultado = await api(
+            `/api/admin/permisos/${idUsuario}/${idVehiculo}`,
+            "PUT",
+            permisos,
+            "USUARIO"
+        );
+
+        if (!resultado.ok) {
+            throw new Error(
+                "El servidor no confirmó el guardado."
+            );
+        }
+
+        msgPermisos(
+            "Permisos guardados correctamente en Amazon RDS."
+        );
+    }
+
     // ======================================================
-    // CATALOGO PUBLICO
+    // CATÁLOGO DE EXHIBICIÓN
     // ======================================================
 
     async function cargarCatalogo() {
@@ -932,48 +1684,654 @@
         if (!destino) return;
 
         const unidades = await api(
-            "/api/invitados/exhibicion"
+            "/api/invitados/exhibicion",
+            "GET",
+            undefined,
+            "PUBLICO"
         );
-
-        if (!Array.isArray(unidades)) {
-            throw new Error(
-                "El catálogo público no devolvió una lista."
-            );
-        }
 
         destino.replaceChildren();
 
-        if (!unidades.length) {
-            destino.textContent =
-                "No hay unidades públicas en exhibición.";
-            return;
-        }
+        if (!Array.isArray(unidades)) return;
 
-        unidades.forEach(vehiculo => {
+        unidades.forEach(v => {
             const tarjeta = document.createElement("div");
-
             tarjeta.className = "admin43-unidad";
 
             const titulo = document.createElement("strong");
-            titulo.textContent = vehiculo.nombre;
+            titulo.textContent = v.nombre;
 
             const descripcion = document.createElement("p");
-
             descripcion.textContent =
-                vehiculo.descripcion ||
-                "Vehículo IoT de exhibición.";
+                v.descripcion || "Vehículo de exhibición.";
 
-            tarjeta.append(
-                titulo,
-                descripcion
-            );
-
+            tarjeta.append(titulo, descripcion);
             destino.append(tarjeta);
         });
     }
 
     // ======================================================
-    // NAVEGACION
+    // INVITADOS
+    // ======================================================
+
+    
+async function cargarExhibicion() {
+    // Consultar vehículos disponibles para exhibición
+    const unidades = await api(
+        "/api/invitados/exhibicion",
+        "GET",
+        undefined,
+        "PUBLICO"
+    );
+
+    if (!Array.isArray(unidades)) {
+        throw new Error(
+            "El servidor no devolvió una lista."
+        );
+    }
+
+    /*
+     * El servidor determina cuáles vehículos
+     * están habilitados para exhibición.
+     *
+     * Ya no filtramos por CONFIG.VEHICULO_ID.
+     */
+
+    const lista = unidades
+        .filter(v =>
+            Number.isSafeInteger(
+                Number(v.id_vehiculo)
+            ) &&
+            Number(v.id_vehiculo) > 0
+        )
+        .map(v => ({
+            id: Number(v.id_vehiculo),
+            nombre:
+                `#${v.id_vehiculo} ` +
+                (v.nombre || "Vehículo IoT")
+        }));
+
+    // Selector del formulario de invitado
+    updateSelect(
+        "acceso-invitado-vehiculo",
+        lista,
+        "Seleccionar vehículo",
+        v => v.nombre
+    );
+
+    // Selector de reservas en Administración
+    updateSelect(
+        "adm-select-invitado",
+        lista,
+        "Seleccionar vehículo",
+        v => v.nombre
+    );
+
+    console.log(
+        "[INVITADOS] Vehículos de exhibición:",
+        lista.length
+    );
+}
+
+    async function reservarInvitado(idVehiculo) {
+        if (state.reservando) return;
+
+        const id = idValido(idVehiculo);
+
+        if (!id) {
+            throw new Error(
+                "Selecciona un vehículo de exhibición."
+            );
+        }
+
+        state.reservando = true;
+
+        try {
+            const reserva = await api(
+                "/api/invitados/reservar",
+                "POST",
+                { id_vehiculo: id },
+                "PUBLICO"
+            );
+
+            if (!reserva.token_invitado) {
+                throw new Error(
+                    "FastAPI no devolvió el token de invitado."
+                );
+            }
+
+            state.token = "";
+            state.perfil = null;
+            state.flota = [];
+
+            sessionStorage.removeItem(TOKEN_KEY);
+
+            state.guest = reserva.token_invitado;
+            state.guestVehicleId = id;
+            state.guestExpiresAt =
+                Date.now() +
+                Number(reserva.duracion_minutos || 10) *
+                60000;
+
+            await seleccionarVehiculo(id);
+
+            iniciarContador();
+
+            redraw();
+            avisarCambioSesion();
+            view("tab-control");
+
+        } finally {
+            state.reservando = false;
+        }
+    }
+
+    function detenerContador() {
+        if (state.guestTimer !== null) {
+            clearInterval(state.guestTimer);
+            state.guestTimer = null;
+        }
+
+        const reloj = el("sesion-tiempo");
+
+        if (reloj) {
+            reloj.hidden = true;
+            reloj.textContent = "";
+        }
+    }
+
+    function actualizarContador() {
+        if (!state.guest) {
+            detenerContador();
+            return;
+        }
+
+        const restante = Math.max(
+            0,
+            state.guestExpiresAt - Date.now()
+        );
+
+        const segundos = Math.ceil(restante / 1000);
+
+        const minutos = Math.floor(segundos / 60);
+        const resto = segundos % 60;
+
+        const reloj = el("sesion-tiempo");
+
+        if (reloj) {
+            reloj.hidden = false;
+            reloj.textContent =
+                `Tiempo: ${String(minutos).padStart(2, "0")}:` +
+                `${String(resto).padStart(2, "0")}`;
+        }
+
+        if (restante === 0) {
+            state.guest = "";
+            state.guestVehicleId = null;
+            state.guestExpiresAt = 0;
+
+            state.vehiculoActivo = null;
+            state.permisosActuales = permisosVacios();
+
+            detenerContador();
+
+            redraw();
+            avisarCambioSesion();
+            panelInvitado();
+
+            msgAcceso(
+                "Tu reserva terminó. Puedes solicitar otra.",
+                true
+            );
+        }
+    }
+
+    function iniciarContador() {
+        detenerContador();
+
+        actualizarContador();
+
+        state.guestTimer = setInterval(
+            actualizarContador,
+            1000
+        );
+    }
+
+    async function finalizarInvitado() {
+        if (!state.guest) return;
+
+        try {
+            await api(
+                "/api/invitados/finalizar",
+                "POST",
+                undefined,
+                "INVITADO"
+            );
+        } catch (error) {
+            console.warn(
+                "[INVITADO] No se confirmó la finalización.",
+                error
+            );
+        }
+
+        state.guest = "";
+        state.guestVehicleId = null;
+        state.guestExpiresAt = 0;
+
+        detenerContador();
+    }
+
+    // ======================================================
+    // OPERACIONES ADMINISTRATIVAS
+    // ======================================================
+
+    function conectarFormulario(id, funcion) {
+        el(id)?.addEventListener(
+            "submit",
+            event => {
+                event.preventDefault();
+
+                run(async () => {
+                    if (!esAdministrador()) {
+                        throw new Error(
+                            "Se requiere Administrador."
+                        );
+                    }
+
+                    await funcion();
+                    await fetchAll();
+                });
+            }
+        );
+    }
+
+    conectarFormulario(
+        "adm-crear-usuario",
+        async () => {
+            await api(
+                "/api/admin/usuarios",
+                "POST",
+                {
+                    nombre: val("adm-nombre-usuario"),
+                    correo: val("adm-correo-usuario"),
+                    password: el("adm-clave-usuario").value,
+                    rol: "USUARIO"
+                }
+            );
+
+            el("adm-clave-usuario").value = "";
+            msg("Comprador registrado.");
+        }
+    );
+
+    conectarFormulario(
+        "adm-editar-usuario",
+        async () => {
+            const id = Number(val("adm-edit-usuario"));
+
+            const anterior = state.usuarios.find(
+                u => Number(u.id_usuario) === id
+            );
+
+            if (!anterior) {
+                throw new Error(
+                    "Selecciona un comprador."
+                );
+            }
+
+            await api(
+                `/api/admin/usuarios/${id}`,
+                "PATCH",
+                {
+                    nombre:
+                        val("adm-edit-nombre") ||
+                        anterior.nombre,
+                    activo: el("adm-edit-activo").checked
+                }
+            );
+
+            msg("Comprador actualizado.");
+        }
+    );
+
+    conectarFormulario(
+        "adm-crear-modelo",
+        async () => {
+            let capacidades = {};
+
+            if (val("adm-capacidades")) {
+                try {
+                    capacidades = JSON.parse(
+                        val("adm-capacidades")
+                    );
+                } catch (error) {
+                    throw new Error(
+                        "JSON de capacidades inválido."
+                    );
+                }
+            }
+
+            await api(
+                "/api/admin/modelos",
+                "POST",
+                {
+                    nombre: val("adm-nombre-modelo"),
+                    descripcion: val("adm-desc-modelo"),
+                    capacidades
+                }
+            );
+
+            msg("Modelo creado.");
+        }
+    );
+
+    conectarFormulario(
+        "adm-editar-modelo",
+        async () => {
+            const id = Number(val("adm-edit-modelo"));
+
+            const anterior = state.modelos.find(
+                m => Number(m.id_modelo) === id
+            );
+
+            if (!anterior) {
+                throw new Error(
+                    "Selecciona un modelo."
+                );
+            }
+
+            let capacidades =
+                anterior.capacidades_json || {};
+
+            if (typeof capacidades === "string") {
+                try {
+                    capacidades = JSON.parse(capacidades);
+                } catch (error) {
+                    capacidades = {};
+                }
+            }
+
+            await api(
+                `/api/admin/modelos/${id}`,
+                "PUT",
+                {
+                    nombre:
+                        val("adm-edit-nombre-modelo") ||
+                        anterior.nombre,
+                    descripcion:
+                        val("adm-edit-desc-modelo") ||
+                        anterior.descripcion ||
+                        "",
+                    capacidades,
+                    activo:
+                        el("adm-edit-modelo-activo").checked
+                }
+            );
+
+            msg("Modelo actualizado.");
+        }
+    );
+
+    conectarFormulario(
+        "adm-nueva-unidad",
+        async () => {
+            await api(
+                "/api/admin/vehiculos",
+                "POST",
+                {
+                    nombre: val("adm-unidad-nombre"),
+                    descripcion: val("adm-unidad-desc"),
+                    ip_asignada: val("adm-unidad-ip"),
+                    estado_comercial: "DISPONIBLE"
+                }
+            );
+
+            msg("Unidad registrada.");
+        }
+    );
+
+    conectarFormulario(
+        "adm-guardar-unidad",
+        async () => {
+            const id = Number(val("adm-vehiculo"));
+
+            if (!id) {
+                throw new Error(
+                    "Selecciona una unidad."
+                );
+            }
+
+            await api(
+                `/api/admin/vehiculos/${id}`,
+                "PATCH",
+                {
+                    id_modelo:
+                        val("adm-modelo")
+                            ? Number(val("adm-modelo"))
+                            : null,
+
+                    id_propietario:
+                        val("adm-propietario")
+                            ? Number(val("adm-propietario"))
+                            : null,
+
+                    estado_comercial:
+                        val("adm-estado-comercial"),
+
+                    numero_serie:
+                        val("adm-serie") || null
+                }
+            );
+
+            limpiarPermisos();
+            msg("Asignación guardada.");
+        }
+    );
+
+    conectarFormulario(
+        "adm-crear-demo",
+        async () => {
+            const id = Number(
+                val("adm-crear-demo-unidad")
+            );
+
+            if (!id) {
+                throw new Error(
+                    "Selecciona una unidad."
+                );
+            }
+
+            await api(
+                "/api/demos",
+                "POST",
+                {
+                    id_vehiculo: id,
+                    nombre: val("adm-nombre-demo"),
+                    descripcion: val("adm-desc-demo")
+                }
+            );
+
+            msg("Demostración creada.");
+        }
+    );
+
+    conectarFormulario(
+        "adm-mov-demo",
+        async () => {
+            const idDemo = Number(
+                val("adm-mov-demo-id")
+            );
+
+            const comando = Number(
+                val("adm-mov-comando")
+            );
+
+            if (!idDemo) {
+                throw new Error(
+                    "Selecciona una demostración."
+                );
+            }
+
+            if (![
+                1, 2, 3, 4, 5, 6, 7,
+                8, 9, 10, 11, 12, 14
+            ].includes(comando)) {
+                throw new Error(
+                    "Comando no definido."
+                );
+            }
+
+            await api(
+                "/api/demos/movimientos",
+                "POST",
+                {
+                    id_demo: idDemo,
+                    id_comando: comando,
+                    orden: Number(val("adm-mov-orden")),
+                    duracion_ms: Number(
+                        val("adm-mov-duracion")
+                    ),
+                    pausa_ms: Number(
+                        val("adm-mov-pausa")
+                    )
+                }
+            );
+
+            msg("Movimiento agregado.");
+        }
+    );
+
+    conectarFormulario(
+        "adm-eliminar-mov",
+        async () => {
+            const id = Number(
+                val("adm-eliminar-mov-id")
+            );
+
+            if (!id) {
+                throw new Error(
+                    "Indica el ID del movimiento."
+                );
+            }
+
+            if (!confirm(
+                "¿Eliminar este movimiento?"
+            )) {
+                return;
+            }
+
+            await api(
+                `/api/demos/movimientos/${id}`,
+                "DELETE"
+            );
+
+            msg("Movimiento eliminado.");
+        }
+    );
+
+    conectarFormulario(
+        "adm-guardar-demo",
+        async () => {
+            const id = Number(val("adm-demo"));
+
+            if (!id) {
+                throw new Error(
+                    "Selecciona una demostración."
+                );
+            }
+
+            await api(
+                `/api/admin/demos/${id}`,
+                "PATCH",
+                {
+                    tipo_demo: val("adm-tipo-demo")
+                }
+            );
+
+            msg("Clasificación actualizada.");
+        }
+    );
+
+    // ======================================================
+    // CONSULTAR MOVIMIENTOS
+    // ======================================================
+
+    el("adm-cargar-movs")?.addEventListener(
+        "click",
+        () => run(async () => {
+            const id = Number(
+                val("adm-mov-demo-id")
+            );
+
+            if (!id) {
+                throw new Error(
+                    "Selecciona una demostración."
+                );
+            }
+
+            const movimientos = await api(
+                `/api/demos/${id}/movimientos`
+            );
+
+            fillTable(
+                "adm-tabla-movs",
+                [
+                    "ID",
+                    "Comando",
+                    "Orden",
+                    "Duración ms",
+                    "Pausa ms"
+                ],
+                Array.isArray(movimientos)
+                    ? movimientos
+                    : [],
+                m => [
+                    m.id_movimiento_demo,
+                    m.id_comando,
+                    m.orden,
+                    m.duracion_ms,
+                    m.pausa_ms
+                ]
+            );
+        })
+    );
+
+    // ======================================================
+    // AUDITORÍA
+    // ======================================================
+
+    el("adm-cargar-auditoria")?.addEventListener(
+        "click",
+        () => run(async () => {
+            const registros = await api(
+                "/api/admin/auditoria"
+            );
+
+            fillTable(
+                "adm-tabla-auditoria",
+                [
+                    "Fecha",
+                    "Acción",
+                    "Usuario",
+                    "Vehículo"
+                ],
+                Array.isArray(registros)
+                    ? registros
+                    : [],
+                r => [
+                    r.fecha_hora,
+                    r.accion,
+                    r.id_usuario,
+                    r.id_vehiculo
+                ]
+            );
+
+            msg("Auditoría actualizada.");
+        })
+    );
+
+    // ======================================================
+    // EVENTOS DE NAVEGACIÓN
     // ======================================================
 
     [
@@ -988,791 +2346,218 @@
     });
 
     // ======================================================
-    // INICIAR SESION
+    // EVENTOS DE INICIO DE SESIÓN
     // ======================================================
+
+    el("acceso-login-form")?.addEventListener(
+        "submit",
+        event => {
+            event.preventDefault();
+
+            iniciarSesion(
+                val("acceso-correo"),
+                el("acceso-password").value
+            );
+        }
+    );
 
     el("adm-login-form")?.addEventListener(
         "submit",
         event => {
             event.preventDefault();
 
-            run(async () => {
-                const resultado = await api(
-                    "/api/auth/login",
-                    "POST",
-                    {
-                        correo: val("adm-correo"),
-                        password: el("adm-password").value
-                    }
-                );
-
-                if (!resultado.token) {
-                    throw new Error(
-                        "El servidor no devolvió un token de sesión."
-                    );
-                }
-
-                state.token = resultado.token;
-
-                sessionStorage.setItem(
-                    TOKEN_KEY,
-                    resultado.token
-                );
-
-                el("adm-password").value = "";
-
-                await loadMe();
-
-                if (state.perfil) {
-                    msg(
-                        `Sesión iniciada correctamente: ${state.perfil.rol}`
-                    );
-                }
-            });
+            iniciarSesion(
+                val("adm-correo"),
+                el("adm-password").value
+            );
         }
     );
 
-    // ======================================================
-    // CERRAR SESION
-    // ======================================================
+    el("btn-salir-plataforma")?.addEventListener(
+        "click",
+        () => run(cerrarSesion)
+    );
 
     el("admin-logout")?.addEventListener(
         "click",
-        () => {
-            run(async () => {
-                try {
-                    await api(
-                        "/api/auth/logout",
-                        "POST"
-                    );
-                } catch (error) {
-                    console.warn(
-                        "[ADMIN] No se confirmó el cierre remoto:",
-                        error
-                    );
-                }
-
-                state.token = "";
-                state.perfil = null;
-                state.flota = [];
-                state.guest = "";
-                state.guestVehicleId = null;
-
-                sessionStorage.removeItem(TOKEN_KEY);
-
-                redraw();
-
-                msg("Sesión local cerrada.");
-            });
-        }
+        () => run(cerrarSesion)
     );
 
     // ======================================================
-    // CREAR COMPRADOR
+    // EVENTOS DE INVITADOS
     // ======================================================
 
-    el("adm-crear-usuario")?.addEventListener(
-        "submit",
-        event => {
-            event.preventDefault();
-
-            run(async () => {
-                await api(
-                    "/api/admin/usuarios",
-                    "POST",
-                    {
-                        nombre: val("adm-nombre-usuario"),
-                        correo: val("adm-correo-usuario"),
-                        password: el("adm-clave-usuario").value,
-                        rol: "USUARIO"
-                    }
-                );
-
-                el("adm-clave-usuario").value = "";
-
-                await fetchAll();
-
-                msg("Comprador registrado correctamente.");
-            });
-        }
-    );
-
-    // ======================================================
-    // EDITAR COMPRADOR
-    // ======================================================
-
-    el("adm-editar-usuario")?.addEventListener(
-        "submit",
-        event => {
-            event.preventDefault();
-
-            run(async () => {
-                const id = Number(
-                    val("adm-edit-usuario")
-                );
-
-                const usuario = state.usuarios.find(
-                    u => Number(u.id_usuario) === id
-                );
-
-                if (!usuario) {
-                    throw new Error(
-                        "Selecciona un comprador."
-                    );
-                }
-
-                await api(
-                    `/api/admin/usuarios/${id}`,
-                    "PATCH",
-                    {
-                        nombre:
-                            val("adm-edit-nombre") ||
-                            usuario.nombre,
-
-                        activo:
-                            el("adm-edit-activo").checked
-                    }
-                );
-
-                await fetchAll();
-
-                msg("Comprador actualizado.");
-            });
-        }
-    );
-
-    // ======================================================
-    // CREAR MODELO
-    // ======================================================
-
-    el("adm-crear-modelo")?.addEventListener(
-        "submit",
-        event => {
-            event.preventDefault();
-
-            run(async () => {
-                let capacidades = {};
-
-                const texto = val(
-                    "adm-capacidades"
-                );
-
-                if (texto) {
-                    try {
-                        capacidades = JSON.parse(texto);
-                    } catch (error) {
-                        throw new Error(
-                            "El JSON de capacidades no es válido."
-                        );
-                    }
-                }
-
-                await api(
-                    "/api/admin/modelos",
-                    "POST",
-                    {
-                        nombre:
-                            val("adm-nombre-modelo"),
-
-                        descripcion:
-                            val("adm-desc-modelo"),
-
-                        capacidades
-                    }
-                );
-
-                await fetchAll();
-
-                msg("Modelo registrado.");
-            });
-        }
-    );
-
-    // ======================================================
-    // EDITAR MODELO
-    // ======================================================
-
-    el("adm-editar-modelo")?.addEventListener(
-        "submit",
-        event => {
-            event.preventDefault();
-
-            run(async () => {
-                const id = Number(
-                    val("adm-edit-modelo")
-                );
-
-                const anterior = state.modelos.find(
-                    m => Number(m.id_modelo) === id
-                );
-
-                if (!anterior) {
-                    throw new Error(
-                        "Selecciona un modelo."
-                    );
-                }
-
-                let capacidades =
-                    anterior.capacidades_json || {};
-
-                if (typeof capacidades === "string") {
-                    try {
-                        capacidades = JSON.parse(
-                            capacidades
-                        );
-                    } catch (error) {
-                        capacidades = {};
-                    }
-                }
-
-                await api(
-                    `/api/admin/modelos/${id}`,
-                    "PUT",
-                    {
-                        nombre:
-                            val("adm-edit-nombre-modelo") ||
-                            anterior.nombre,
-
-                        descripcion:
-                            val("adm-edit-desc-modelo") ||
-                            anterior.descripcion ||
-                            "",
-
-                        capacidades,
-
-                        activo:
-                            el("adm-edit-modelo-activo").checked
-                    }
-                );
-
-                await fetchAll();
-
-                msg("Modelo actualizado.");
-            });
-        }
-    );
-
-    // ======================================================
-    // CREAR UNIDAD FISICA
-    // ======================================================
-
-    el("adm-nueva-unidad")?.addEventListener(
-        "submit",
-        event => {
-            event.preventDefault();
-
-            run(async () => {
-                await api(
-                    "/api/admin/vehiculos",
-                    "POST",
-                    {
-                        nombre:
-                            val("adm-unidad-nombre"),
-
-                        descripcion:
-                            val("adm-unidad-desc"),
-
-                        ip_asignada:
-                            val("adm-unidad-ip"),
-
-                        estado_comercial:
-                            "DISPONIBLE"
-                    }
-                );
-
-                await fetchAll();
-
-                msg(
-                    "Unidad creada. Ya puedes asignar su modelo y propietario."
-                );
-            });
-        }
-    );
-
-    // ======================================================
-    // ASIGNAR UNIDAD
-    // ======================================================
-
-    el("adm-guardar-unidad")?.addEventListener(
-        "submit",
-        event => {
-            event.preventDefault();
-
-            run(async () => {
-                const id = Number(
-                    val("adm-vehiculo")
-                );
-
-                if (!id) {
-                    throw new Error(
-                        "Selecciona una unidad."
-                    );
-                }
-
-                await api(
-                    `/api/admin/vehiculos/${id}`,
-                    "PATCH",
-                    {
-                        id_modelo:
-                            val("adm-modelo")
-                                ? Number(val("adm-modelo"))
-                                : null,
-
-                        id_propietario:
-                            val("adm-propietario")
-                                ? Number(val("adm-propietario"))
-                                : null,
-
-                        estado_comercial:
-                            val("adm-estado-comercial"),
-
-                        numero_serie:
-                            val("adm-serie") || null
-                    }
-                );
-
-                await fetchAll();
-
-                msg("Asignación comercial guardada.");
-            });
-        }
-    );
-
-    // ======================================================
-    // CREAR DEMOSTRACION
-    // ======================================================
-
-    el("adm-crear-demo")?.addEventListener(
-        "submit",
-        event => {
-            event.preventDefault();
-
-            run(async () => {
-                const idVehiculo = Number(
-                    val("adm-crear-demo-unidad")
-                );
-
-                if (!idVehiculo) {
-                    throw new Error(
-                        "Selecciona una unidad."
-                    );
-                }
-
-                await api(
-                    "/api/demos",
-                    "POST",
-                    {
-                        id_vehiculo: idVehiculo,
-
-                        nombre:
-                            val("adm-nombre-demo"),
-
-                        descripcion:
-                            val("adm-desc-demo")
-                    }
-                );
-
-                await fetchAll();
-
-                msg("Demostración creada.");
-            });
-        }
-    );
-
-    // ======================================================
-    // AGREGAR MOVIMIENTO A DEMO
-    // ======================================================
-
-    el("adm-mov-demo")?.addEventListener(
-        "submit",
-        event => {
-            event.preventDefault();
-
-            run(async () => {
-                const idDemo = Number(
-                    val("adm-mov-demo-id")
-                );
-
-                if (!idDemo) {
-                    throw new Error(
-                        "Selecciona una demostración."
-                    );
-                }
-
-                const comando = Number(
-                    val("adm-mov-comando")
-                );
-
-                const catalogo = [
-                    1, 2, 3, 4,
-                    5, 6, 7, 8,
-                    9, 10, 11, 12,
-                    14
-                ];
-
-                if (!catalogo.includes(comando)) {
-                    throw new Error(
-                        "Comando fuera del catálogo definitivo."
-                    );
-                }
-
-                await api(
-                    "/api/demos/movimientos",
-                    "POST",
-                    {
-                        id_demo: idDemo,
-
-                        id_comando: comando,
-
-                        orden: Number(
-                            val("adm-mov-orden")
-                        ),
-
-                        duracion_ms: Number(
-                            val("adm-mov-duracion")
-                        ),
-
-                        pausa_ms: Number(
-                            val("adm-mov-pausa")
-                        )
-                    }
-                );
-
-                msg(
-                    "Movimiento agregado a la secuencia."
-                );
-            });
-        }
-    );
-
-    // ======================================================
-    // ELIMINAR MOVIMIENTO
-    // ======================================================
-
-    el("adm-eliminar-mov")?.addEventListener(
-        "submit",
-        event => {
-            event.preventDefault();
-
-            run(async () => {
-                const id = Number(
-                    val("adm-eliminar-mov-id")
-                );
-
-                if (!id) {
-                    throw new Error(
-                        "Indica el ID del movimiento."
-                    );
-                }
-
-                if (!confirm(
-                    "¿Eliminar este movimiento de la demostración?"
-                )) {
-                    return;
-                }
-
-                await api(
-                    `/api/demos/movimientos/${id}`,
-                    "DELETE"
-                );
-
-                msg("Movimiento eliminado.");
-            });
-        }
-    );
-
-    // ======================================================
-    // CONSULTAR MOVIMIENTOS
-    // ======================================================
-
-    el("adm-cargar-movs")?.addEventListener(
+    el("acceso-btn-invitado")?.addEventListener(
         "click",
         () => {
-            run(async () => {
-                const id = Number(
-                    val("adm-mov-demo-id")
-                );
-
-                if (!id) {
-                    throw new Error(
-                        "Selecciona una demostración."
-                    );
-                }
-
-                const movimientos = await api(
-                    `/api/demos/${id}/movimientos`
-                );
-
-                if (!Array.isArray(movimientos)) {
-                    throw new Error(
-                        "El servidor no devolvió una lista de movimientos."
-                    );
-                }
-
-                fillTable(
-                    "adm-tabla-movs",
-                    [
-                        "ID",
-                        "Comando",
-                        "Orden",
-                        "Duración ms",
-                        "Pausa ms"
-                    ],
-                    movimientos,
-                    m => [
-                        m.id_movimiento_demo,
-                        m.id_comando,
-                        m.orden,
-                        m.duracion_ms,
-                        m.pausa_ms
-                    ]
-                );
-
-                msg("Movimientos actualizados.");
-            });
+            panelInvitado();
+            run(cargarExhibicion);
         }
     );
 
-    // ======================================================
-    // CLASIFICAR DEMOSTRACION
-    // ======================================================
-
-    el("adm-guardar-demo")?.addEventListener(
-        "submit",
-        event => {
-            event.preventDefault();
-
-            run(async () => {
-                const id = Number(
-                    val("adm-demo")
-                );
-
-                if (!id) {
-                    throw new Error(
-                        "Selecciona una demostración."
-                    );
-                }
-
-                await api(
-                    `/api/admin/demos/${id}`,
-                    "PATCH",
-                    {
-                        tipo_demo:
-                            val("adm-tipo-demo")
-                    }
-                );
-
-                await fetchAll();
-
-                msg(
-                    "Clasificación de demostración guardada."
-                );
-            });
-        }
-    );
-
-    // ======================================================
-    // AUDITORIA
-    // ======================================================
-
-    el("adm-cargar-auditoria")?.addEventListener(
+    el("acceso-btn-volver")?.addEventListener(
         "click",
-        () => {
-            run(async () => {
-                const registros = await api(
-                    "/api/admin/auditoria"
-                );
-
-                if (!Array.isArray(registros)) {
-                    throw new Error(
-                        "El servidor no devolvió una lista de auditoría."
-                    );
-                }
-
-                fillTable(
-                    "adm-tabla-auditoria",
-                    [
-                        "Fecha",
-                        "Acción",
-                        "Usuario",
-                        "Vehículo"
-                    ],
-                    registros,
-                    r => [
-                        r.fecha_hora,
-                        r.accion,
-                        r.id_usuario,
-                        r.id_vehiculo
-                    ]
-                );
-
-                msg("Auditoría actualizada.");
-            });
-        }
+        panelLogin
     );
 
-    // ======================================================
-    // CONSULTAR CATALOGO PUBLICO
-    // ======================================================
+    el("acceso-btn-reservar")?.addEventListener(
+        "click",
+        () => run(async () => {
+            try {
+                await reservarInvitado(
+                    Number(
+                        val("acceso-invitado-vehiculo")
+                    )
+                );
+            } catch (error) {
+                msgAcceso(error.message, true);
+                throw error;
+            }
+        })
+    );
 
     el("adm-publico-catalogo")?.addEventListener(
         "click",
         () => run(cargarCatalogo)
     );
 
-    // ======================================================
-    // CONSULTAR UNIDADES DE EXHIBICION
-    // ======================================================
-
     el("adm-cargar-exhibicion")?.addEventListener(
         "click",
-        () => {
-            run(async () => {
-                const unidades = await api(
-                    "/api/invitados/exhibicion"
-                );
-
-                if (!Array.isArray(unidades)) {
-                    throw new Error(
-                        "La respuesta del servidor no es una lista."
-                    );
-                }
-
-                // Solo el vehiculo que esta
-                // implementado en CONTROL 4.1.
-                const disponibles = unidades.filter(
-                    vehiculo =>
-                        Number(vehiculo.id_vehiculo) ===
-                        Number(CONFIG.VEHICULO_ID)
-                );
-
-                updateSelect(
-                    "adm-select-invitado",
-                    disponibles.map(vehiculo => ({
-                        id: vehiculo.id_vehiculo,
-                        nombre: vehiculo.nombre
-                    })),
-                    "Seleccionar vehículo",
-                    vehiculo => vehiculo.nombre
-                );
-
-                msg(
-                    `${disponibles.length} vehículo(s) disponible(s) para exhibición.`
-                );
-            });
-        }
+        () => run(cargarExhibicion)
     );
-
-    // ======================================================
-    // RESERVAR EXHIBICION
-    // ======================================================
 
     el("adm-reservar")?.addEventListener(
         "click",
-        () => {
-            run(async () => {
-                const idVehiculo = Number(
-                    val("adm-select-invitado")
-                );
-
-                if (!idVehiculo) {
-                    throw new Error(
-                        "Selecciona un vehículo de exhibición."
-                    );
-                }
-
-                const reserva = await api(
-                    "/api/invitados/reservar",
-                    "POST",
-                    {
-                        id_vehiculo: idVehiculo
-                    }
-                );
-
-                if (!reserva.token_invitado) {
-                    throw new Error(
-                        "El servidor no entregó un token de invitado."
-                    );
-                }
-
-                state.guest = reserva.token_invitado;
-                state.guestVehicleId = idVehiculo;
-
-                redraw();
-
-                msg(
-                    "Reserva temporal activa. Puedes solicitar demostraciones de fábrica."
-                );
-            });
-        }
+        () => run(async () => {
+            await reservarInvitado(
+                Number(val("adm-select-invitado"))
+            );
+        })
     );
-
-    // ======================================================
-    // FINALIZAR RESERVA
-    // ======================================================
 
     el("adm-finalizar-reserva")?.addEventListener(
         "click",
+        () => run(async () => {
+            await finalizarInvitado();
+
+            state.vehiculoActivo = null;
+            state.permisosActuales = permisosVacios();
+
+            redraw();
+            avisarCambioSesion();
+        })
+    );
+
+    // ======================================================
+    // EVENTOS DE ADMINISTRACIÓN DE PERMISOS
+    // ======================================================
+
+    el("adm-perm-usuario")?.addEventListener(
+        "change",
         () => {
+            limpiarPermisos();
+            actualizarVehiculosPermisos();
+        }
+    );
+
+    el("adm-perm-vehiculo")?.addEventListener(
+        "change",
+        limpiarPermisos
+    );
+
+    el("adm-cargar-permisos")?.addEventListener(
+        "click",
+        () => run(async () => {
+            try {
+                await consultarPermisos();
+            } catch (error) {
+                msgPermisos(error.message, true);
+                throw error;
+            }
+        })
+    );
+
+    el("adm-form-permisos")?.addEventListener(
+        "submit",
+        event => {
+            event.preventDefault();
+
             run(async () => {
-                if (!state.guest) {
-                    throw new Error(
-                        "No hay una reserva activa."
-                    );
+                try {
+                    await guardarPermisos();
+                } catch (error) {
+                    msgPermisos(error.message, true);
+                    throw error;
                 }
-
-                await api(
-                    "/api/invitados/finalizar",
-                    "POST",
-                    undefined,
-                    true
-                );
-
-                state.guest = "";
-                state.guestVehicleId = null;
-
-                redraw();
-
-                msg("Reserva finalizada.");
             });
         }
     );
 
     // ======================================================
-    // INTEGRACION PUBLICA CON APP.JS
+    // INTEGRACIÓN CON CONTROL 4.1
     // ======================================================
 
     window.IOT43 = {
         canControl,
+        canCommand,
         canDemo,
+        canMonitor,
         headers: headersParaControl,
+        getRole,
+        getVehicle,
+        getPermisos,
 
         reject: () => {
             msg(
-                "Acceso denegado. Inicia sesión con una cuenta autorizada.",
+                "Acceso denegado o permiso no autorizado.",
                 true
             );
-        },
-
-        // Permite revisar el estado del rol
-        // sin exponer el token.
-        getRole: () =>
-            state.perfil?.rol || "INVITADO"
+        }
     };
 
     // ======================================================
-    // INICIALIZACION
+    // INICIALIZACIÓN
     // ======================================================
 
-    redraw();
+    async function iniciarAplicacion() {
+        mostrarAcceso();
+        crearSelectorVehiculo();
+        limpiarPermisos();
 
-    loadMe().catch(error => {
+        if (state.token) {
+            try {
+                await cargarPerfil();
+            } catch (error) {
+                console.warn(
+                    "[AUTH] No se pudo recuperar la sesión:",
+                    error
+                );
+
+                msgAcceso(error.message, true);
+            }
+        }
+
+        redraw();
+
+        if (getRole() !== "SIN_SESION") {
+            view("tab-control");
+        } else {
+            panelLogin();
+        }
+    }
+
+    iniciarAplicacion().catch(error => {
         console.error(
-            "[ADMIN] Error inicializando:",
+            "[ADMIN 4.3] Error al iniciar:",
             error
         );
 
-        msg(error.message, true);
+        mostrarAcceso();
+
+        msgAcceso(
+            "No se pudo iniciar la plataforma.",
+            true
+        );
     });
 
 })();
